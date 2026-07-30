@@ -1,0 +1,387 @@
+// ==========================================================================
+// Sistema de Escalação de Freelancers — modelagem de dados
+//
+// Fiel ao dicionário de dados do TCC (Tabelas 01–05: users, empresas,
+// eventos, vinculos, inscricoes), com extensões justificadas pelos
+// requisitos: notificacoes (RF15), audit_logs (RNF07 Auditoria) e
+// consents (conformidade LGPD). Migração para PostgreSQL (mais robusto e
+// aderente a "melhores tecnologias" do que MySQL para integridade e enums).
+// ==========================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------------------------------------------------------------------
+// Enums
+// --------------------------------------------------------------------------
+
+enum Genero {
+  MASCULINO
+  FEMININO
+  OUTRO
+  NAO_INFORMADO
+}
+
+/// Situação do vínculo empresa <-> trabalhador (Tabela 04).
+enum StatusVinculo {
+  PENDENTE
+  ATIVO
+  RECUSADO
+  DESVINCULADO
+}
+
+/// Quem iniciou o pedido de vínculo (Tabela 04, campo solicitado_por).
+enum SolicitadoPor {
+  EMPRESA
+  TRABALHADOR
+}
+
+/// Estado do evento no seu ciclo de vida (RF05, RF08, tela Escalar).
+enum StatusEvento {
+  RASCUNHO
+  PUBLICADO
+  ESCALADO
+  FINALIZADO
+  CANCELADO
+}
+
+/// Status da inscrição do trabalhador em um evento (Tabela 05, RF14).
+enum StatusInscricao {
+  INSCRITO
+  ESCALADO
+  RECUSADO_EMPRESA
+  CANCELADO_TRABALHADOR
+  PRESENTE
+  FALTA
+}
+
+enum TipoNotificacao {
+  CONVITE_VINCULO
+  VINCULO_ACEITO
+  VINCULO_RECUSADO
+  NOVO_EVENTO
+  ESCALADO
+  EVENTO_ATUALIZADO
+  EVENTO_CANCELADO
+}
+
+enum TipoAtor {
+  TRABALHADOR
+  EMPRESA
+  SISTEMA
+}
+
+/// Quem escreveu a avaliação (v2 — reputação bidirecional).
+enum AutorAvaliacao {
+  EMPRESA
+  TRABALHADOR
+}
+
+/// Plano SaaS da empresa (tenant). Base do gating de funcionalidades/limites.
+enum Plano {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+/// Estado da assinatura (base para billing futuro — Stripe/pagar.me).
+enum StatusAssinatura {
+  TRIAL
+  ATIVA
+  INADIMPLENTE
+  CANCELADA
+}
+
+/// Papel do membro dentro da empresa (RBAC). PROPRIETARIO é o dono da conta.
+enum Papel {
+  PROPRIETARIO
+  ADMIN
+  COORDENADOR
+  VISUALIZADOR
+}
+
+// --------------------------------------------------------------------------
+// Tabela 01 — Usuários (trabalhadores)
+// --------------------------------------------------------------------------
+
+model User {
+  id             Int       @id @default(autoincrement())
+  nome           String    @db.VarChar(120)
+  email          String    @unique @db.VarChar(160)
+  dataNascimento DateTime  @map("data_nascimento") @db.Date
+  cpf            String    @unique @db.Char(11)
+  telefone       String    @db.VarChar(11)
+  senhaHash      String    @map("senha_hash") @db.VarChar(255)
+  fotoPath       String?   @map("foto_path") @db.VarChar(255)
+  genero         Genero    @default(NAO_INFORMADO)
+
+  // Perfil profissional (v2): melhora matching e produtividade da escalação.
+  cidade         String?   @db.VarChar(120)
+  bio            String?   @db.VarChar(500)
+  habilidades    String?   @db.VarChar(400) // lista separada por vírgula
+
+  // LGPD: anonimização (direito ao esquecimento) sem quebrar integridade
+  // referencial de eventos históricos já ocorridos.
+  anonimizadoEm  DateTime? @map("anonimizado_em")
+  ativo          Boolean   @default(true)
+
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  vinculos          Vinculo[]
+  inscricoes        Inscricao[]
+  notificacoes      Notificacao[]
+  consentimentos    Consentimento[]
+  avaliacoesRecebidas Avaliacao[] @relation("AvaliacoesDoTrabalhador")
+
+  @@map("users")
+}
+
+// --------------------------------------------------------------------------
+// Tabela 02 — Empresas (contratantes)
+// --------------------------------------------------------------------------
+
+model Empresa {
+  id            Int       @id @default(autoincrement())
+  nome          String    @db.VarChar(160)
+  cnpj          String    @unique @db.Char(14)
+  email         String    @unique @db.VarChar(160)
+  telefone      String    @db.VarChar(11)
+  senhaHash     String    @map("senha_hash") @db.VarChar(255)
+  fotoPath      String?   @map("foto_path") @db.VarChar(255)
+
+  anonimizadoEm DateTime? @map("anonimizado_em")
+  ativo         Boolean   @default(true)
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  eventos   Evento[]
+  vinculos  Vinculo[]
+  avaliacoesRecebidas Avaliacao[] @relation("AvaliacoesDaEmpresa")
+
+  // SaaS: usuários da conta (RBAC) e assinatura/plano (multi-tenant).
+  membros    Membro[]
+  assinatura Assinatura?
+
+  @@map("empresas")
+}
+
+// --------------------------------------------------------------------------
+// SaaS — Membros da empresa (RBAC / multiusuário por tenant)
+//
+// A Empresa continua sendo o tenant (empresa_id já escopa todos os dados). O
+// login de empresa passa a resolver por Membro; cada empresa recebe, na
+// criação/backfill, um Membro PROPRIETARIO. Assim o isolamento por tenant é
+// preservado e ganhamos time + papéis sem reescrever as consultas existentes.
+// --------------------------------------------------------------------------
+model Membro {
+  id        Int      @id @default(autoincrement())
+  empresaId Int      @map("empresa_id")
+  nome      String   @db.VarChar(120)
+  email     String   @unique @db.VarChar(160)
+  senhaHash String   @map("senha_hash") @db.VarChar(255)
+  papel     Papel    @default(COORDENADOR)
+  ativo     Boolean  @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([empresaId])
+  @@map("membros")
+}
+
+// --------------------------------------------------------------------------
+// SaaS — Assinatura (1-1 com Empresa). Define plano e status; guarda ganchos
+// para o provedor de pagamento futuro. O gating de limites/funcionalidades lê
+// daqui (ver src/lib/planos.ts).
+// --------------------------------------------------------------------------
+model Assinatura {
+  id             Int              @id @default(autoincrement())
+  empresaId      Int              @unique @map("empresa_id")
+  plano          Plano            @default(STARTER)
+  status         StatusAssinatura @default(TRIAL)
+  trialTerminaEm DateTime?        @map("trial_termina_em")
+  // Ganchos de billing (preenchidos quando integrar Stripe/pagar.me):
+  provedor       String?          @db.VarChar(40) // ex.: "stripe", "pagarme"
+  provedorRef    String?          @map("provedor_ref") @db.VarChar(160)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@map("assinaturas")
+}
+
+// --------------------------------------------------------------------------
+// Tabela 03 — Eventos (criados pelas empresas)
+// --------------------------------------------------------------------------
+
+model Evento {
+  id         Int          @id @default(autoincrement())
+  empresaId  Int          @map("empresa_id")
+  nome       String       @db.VarChar(180)
+  descricao  String?
+  dataEvento DateTime     @map("data_evento") @db.Date
+  // Extensões dos protótipos de tela (local, vagas, funções, horário).
+  local      String?      @db.VarChar(200)
+  horaInicio String?      @map("hora_inicio") @db.VarChar(5) // "HH:MM"
+  vagas      Int          @default(1)
+  funcoes    String?      @db.VarChar(400) // ex.: "Garçom, Bilheteiro, Segurança"
+  valorCache Decimal      @default(0.00) @map("valor_cache") @db.Decimal(10, 2)
+  observacoes String?
+  status     StatusEvento @default(PUBLICADO)
+
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  empresa    Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  inscricoes Inscricao[]
+  avaliacoes Avaliacao[]
+
+  @@index([empresaId])
+  @@index([dataEvento])
+  @@map("eventos")
+}
+
+// --------------------------------------------------------------------------
+// Tabela 04 — Vínculos (empresa <-> trabalhador)
+// --------------------------------------------------------------------------
+
+model Vinculo {
+  id            Int           @id @default(autoincrement())
+  userId        Int           @map("user_id")
+  empresaId     Int           @map("empresa_id")
+  status        StatusVinculo @default(PENDENTE)
+  solicitadoPor SolicitadoPor @map("solicitado_por")
+  favorito      Boolean       @default(false)
+
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // Um par (trabalhador, empresa) só pode ter um vínculo.
+  @@unique([userId, empresaId])
+  @@index([empresaId])
+  @@index([userId])
+  @@map("vinculos")
+}
+
+// --------------------------------------------------------------------------
+// Tabela 05 — Inscrições (candidatura do trabalhador ao evento)
+// --------------------------------------------------------------------------
+
+model Inscricao {
+  id        Int             @id @default(autoincrement())
+  eventoId  Int             @map("evento_id")
+  userId    Int             @map("user_id")
+  status    StatusInscricao @default(INSCRITO)
+
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Um trabalhador só se inscreve uma vez por evento (RF13/RF14).
+  @@unique([eventoId, userId])
+  @@index([eventoId])
+  @@index([userId])
+  @@map("inscricoes")
+}
+
+// --------------------------------------------------------------------------
+// Notificações internas (RF15)
+// --------------------------------------------------------------------------
+
+model Notificacao {
+  id        Int             @id @default(autoincrement())
+  userId    Int             @map("user_id")
+  tipo      TipoNotificacao
+  titulo    String          @db.VarChar(160)
+  mensagem  String          @db.VarChar(500)
+  link      String?         @db.VarChar(255)
+  lida      Boolean         @default(false)
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lida])
+  @@map("notificacoes")
+}
+
+// --------------------------------------------------------------------------
+// Trilha de auditoria (RNF07)
+// --------------------------------------------------------------------------
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  atorTipo  TipoAtor @map("ator_tipo")
+  atorId    Int?     @map("ator_id")
+  acao      String   @db.VarChar(80) // ex.: "LOGIN", "EVENTO_CRIADO"
+  entidade  String?  @db.VarChar(80) // ex.: "Evento"
+  entidadeId Int?    @map("entidade_id")
+  detalhe   String?  @db.VarChar(500)
+  ip        String?  @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([atorTipo, atorId])
+  @@index([acao])
+  @@map("audit_logs")
+}
+
+// --------------------------------------------------------------------------
+// Consentimentos LGPD (Art. 7º, I e Art. 8º — registro de consentimento)
+// --------------------------------------------------------------------------
+
+model Consentimento {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  // Finalidade do tratamento consentido, ex.: "termos_e_privacidade".
+  finalidade String  @db.VarChar(120)
+  versao    String   @db.VarChar(20) // versão do documento aceito
+  concedido Boolean  @default(true)
+  ip        String?  @db.VarChar(45)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("consentimentos")
+}
+
+// --------------------------------------------------------------------------
+// Avaliações (v2) — reputação bidirecional empresa <-> trabalhador
+// --------------------------------------------------------------------------
+
+model Avaliacao {
+  id         Int            @id @default(autoincrement())
+  eventoId   Int            @map("evento_id")
+  empresaId  Int            @map("empresa_id")
+  userId     Int            @map("user_id")
+  autor      AutorAvaliacao // quem avaliou (EMPRESA avalia o trabalhador; TRABALHADOR avalia a empresa)
+  nota       Int            // 1..5
+  comentario String?        @db.VarChar(500)
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  evento  Evento  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  empresa Empresa @relation("AvaliacoesDaEmpresa", fields: [empresaId], references: [id], onDelete: Cascade)
+  user    User    @relation("AvaliacoesDoTrabalhador", fields: [userId], references: [id], onDelete: Cascade)
+
+  // Uma avaliação por par (evento, empresa, trabalhador, autor).
+  @@unique([eventoId, empresaId, userId, autor])
+  @@index([userId])
+  @@index([empresaId])
+  @@map("avaliacoes")
+}

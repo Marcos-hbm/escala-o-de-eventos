@@ -1,0 +1,153 @@
+import { z } from "zod";
+import { isValidCPF, isValidCNPJ, idade } from "./validators-doc";
+
+// --------------------------------------------------------------------------
+// Helpers
+// --------------------------------------------------------------------------
+
+const digits = (s: string) => s.replace(/\D/g, "");
+
+const senhaSchema = z
+  .string()
+  .min(8, "A senha deve ter no mínimo 8 caracteres")
+  .regex(/[A-Za-z]/, "A senha deve conter ao menos uma letra")
+  .regex(/[0-9]/, "A senha deve conter ao menos um número");
+
+const telefoneSchema = z
+  .string()
+  .transform(digits)
+  .refine((v) => v.length === 10 || v.length === 11, "Telefone inválido (DDD + número)");
+
+// --------------------------------------------------------------------------
+// Cadastro — Trabalhador (RF01)
+// --------------------------------------------------------------------------
+
+export const cadastroTrabalhadorSchema = z
+  .object({
+    nome: z.string().trim().min(3, "Informe o nome completo").max(120),
+    email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+    cpf: z
+      .string()
+      .transform(digits)
+      .refine((v) => v.length === 11, "CPF deve ter 11 dígitos")
+      .refine(isValidCPF, "CPF inválido"),
+    dataNascimento: z.coerce.date({ errorMap: () => ({ message: "Data de nascimento inválida" }) }),
+    telefone: telefoneSchema,
+    genero: z.enum(["MASCULINO", "FEMININO", "OUTRO", "NAO_INFORMADO"]).default("NAO_INFORMADO"),
+    senha: senhaSchema,
+    aceiteLgpd: z.coerce.boolean().refine((v) => v === true, "É necessário aceitar a Política de Privacidade"),
+  })
+  .refine((d) => idade(d.dataNascimento) >= 16, {
+    message: "É necessário ter ao menos 16 anos",
+    path: ["dataNascimento"],
+  });
+
+export type CadastroTrabalhadorInput = z.infer<typeof cadastroTrabalhadorSchema>;
+
+// --------------------------------------------------------------------------
+// Cadastro — Empresa (RF02)
+// --------------------------------------------------------------------------
+
+export const cadastroEmpresaSchema = z.object({
+  nome: z.string().trim().min(2, "Informe a razão social / nome fantasia").max(160),
+  cnpj: z
+    .string()
+    .transform(digits)
+    .refine((v) => v.length === 14, "CNPJ deve ter 14 dígitos")
+    .refine(isValidCNPJ, "CNPJ inválido"),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  telefone: telefoneSchema,
+  senha: senhaSchema,
+  aceiteLgpd: z.coerce.boolean().refine((v) => v === true, "É necessário aceitar a Política de Privacidade"),
+});
+
+export type CadastroEmpresaInput = z.infer<typeof cadastroEmpresaSchema>;
+
+// --------------------------------------------------------------------------
+// Login (RF03)
+// --------------------------------------------------------------------------
+
+export const loginSchema = z.object({
+  tipo: z.enum(["TRABALHADOR", "EMPRESA"]),
+  email: z.string().trim().toLowerCase().email("E-mail inválido"),
+  senha: z.string().min(1, "Informe a senha"),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
+
+// --------------------------------------------------------------------------
+// Perfil (RF04)
+// --------------------------------------------------------------------------
+
+export const perfilTrabalhadorSchema = z.object({
+  nome: z.string().trim().min(3).max(120),
+  telefone: telefoneSchema,
+  genero: z.enum(["MASCULINO", "FEMININO", "OUTRO", "NAO_INFORMADO"]),
+  cidade: z.string().trim().max(120).optional().or(z.literal("")),
+  bio: z.string().trim().max(500).optional().or(z.literal("")),
+  habilidades: z.string().trim().max(400).optional().or(z.literal("")),
+});
+
+// Avaliação bidirecional (v2)
+export const avaliacaoSchema = z.object({
+  nota: z.coerce.number().int().min(1, "Nota de 1 a 5").max(5, "Nota de 1 a 5"),
+  comentario: z.string().trim().max(500).optional().or(z.literal("")),
+});
+
+export const perfilEmpresaSchema = z.object({
+  nome: z.string().trim().min(2).max(160),
+  telefone: telefoneSchema,
+});
+
+// --------------------------------------------------------------------------
+// SaaS (v3) — Equipe (membros) e plano
+// --------------------------------------------------------------------------
+
+const papelSchema = z.enum(["PROPRIETARIO", "ADMIN", "COORDENADOR", "VISUALIZADOR"]);
+
+export const membroSchema = z.object({
+  nome: z.string().trim().min(3, "Informe o nome do membro").max(120),
+  email: z.string().trim().toLowerCase().email("E-mail inválido").max(160),
+  senha: senhaSchema,
+  papel: papelSchema,
+});
+
+export const alterarPapelSchema = z.object({
+  membroId: z.coerce.number().int().positive(),
+  papel: papelSchema,
+});
+
+export const planoSchema = z.object({
+  plano: z.enum(["STARTER", "PROFESSIONAL", "ENTERPRISE"]),
+});
+
+// --------------------------------------------------------------------------
+// Evento (RF05 / RF08)
+// --------------------------------------------------------------------------
+
+export const eventoSchema = z.object({
+  nome: z.string().trim().min(3, "Informe o nome do evento").max(180),
+  descricao: z.string().trim().max(2000).optional().or(z.literal("")),
+  dataEvento: z.coerce.date({ errorMap: () => ({ message: "Data do evento inválida" }) }),
+  local: z.string().trim().max(200).optional().or(z.literal("")),
+  horaInicio: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Horário inválido (HH:MM)")
+    .optional()
+    .or(z.literal("")),
+  vagas: z.coerce.number().int().min(1, "Mínimo de 1 vaga").max(10000),
+  funcoes: z.string().trim().max(400).optional().or(z.literal("")),
+  valorCache: z.coerce.number().min(0, "Valor não pode ser negativo").max(1_000_000),
+  observacoes: z.string().trim().max(2000).optional().or(z.literal("")),
+});
+
+export type EventoInput = z.infer<typeof eventoSchema>;
+
+// --------------------------------------------------------------------------
+// Escalação (RF10)
+// --------------------------------------------------------------------------
+
+export const escalarSchema = z.object({
+  eventoId: z.coerce.number().int().positive(),
+  userIds: z.array(z.coerce.number().int().positive()).min(1, "Selecione ao menos um trabalhador"),
+});

@@ -1,0 +1,36 @@
+# dependências
+/node_modules
+/.pnp
+.pnp.js
+
+# build
+/.next/
+/out/
+/build
+next-env.d.ts
+# cache incremental do TypeScript
+tsconfig.tsbuildinfo
+
+# testes
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# ambiente / segredos (NUNCA commitar)
+.env
+.env*.local
+.env.production
+
+# banco
+*.db
+# cluster local do Postgres sem Docker (scripts/db.mjs)
+/.pgdata
+
+# sistema
+.DS_Store
+*.pem
+npm-debug.log*
+/uploads/*
+!/uploads/.gitkeep
