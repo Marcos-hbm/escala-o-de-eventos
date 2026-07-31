@@ -3,9 +3,12 @@ import {
   MATRIZ_PERMISSOES,
   ORDEM_PAPEIS,
   checarPermissao,
+  ehPermissaoFinanceira,
+  mensagemFinanceiro,
   mensagemPermissao,
   papeisAtribuiveis,
   pode,
+  podeFinanceiro,
   rotuloPapel,
 } from "@/lib/rbac";
 
@@ -69,5 +72,64 @@ describe("mensagens de negação", () => {
   it("checarPermissao devolve null quando autorizado", () => {
     expect(checarPermissao("COORDENADOR", "evento:criar")).toBeNull();
     expect(checarPermissao("VISUALIZADOR", "evento:criar")).toBeTypeOf("string");
+  });
+});
+
+/**
+ * v4 — financeiro. Única família de permissão que não é decidida só pelo papel:
+ * "coordenadores autorizados" da especificação.
+ */
+describe("permissões financeiras (v4)", () => {
+  const FINANCEIRAS = ["financeiro:gerenciar", "financeiro:ver", "pix:ver"] as const;
+
+  it("PROPRIETARIO e ADMIN têm acesso pelo papel", () => {
+    for (const p of FINANCEIRAS) {
+      expect(pode("PROPRIETARIO", p)).toBe(true);
+      expect(pode("ADMIN", p)).toBe(true);
+      expect(podeFinanceiro("PROPRIETARIO", p, false)).toBe(true);
+      expect(podeFinanceiro("ADMIN", p, false)).toBe(true);
+    }
+  });
+
+  it("COORDENADOR só com autorização explícita", () => {
+    for (const p of FINANCEIRAS) {
+      expect(pode("COORDENADOR", p)).toBe(false);
+      expect(podeFinanceiro("COORDENADOR", p, false)).toBe(false);
+      expect(podeFinanceiro("COORDENADOR", p, true)).toBe(true);
+    }
+  });
+
+  it("VISUALIZADOR nunca acessa, nem com a flag ligada", () => {
+    for (const p of FINANCEIRAS) {
+      expect(podeFinanceiro("VISUALIZADOR", p, true)).toBe(false);
+    }
+  });
+
+  it("a flag não afeta permissões não financeiras", () => {
+    expect(podeFinanceiro("VISUALIZADOR", "evento:criar", true)).toBe(false);
+    expect(podeFinanceiro("COORDENADOR", "equipe:gerenciar", true)).toBe(false);
+    expect(podeFinanceiro("COORDENADOR", "evento:criar", false)).toBe(true);
+  });
+
+  it("classifica corretamente o que é permissão financeira", () => {
+    expect(ehPermissaoFinanceira("pix:ver")).toBe(true);
+    expect(ehPermissaoFinanceira("evento:criar")).toBe(false);
+  });
+
+  it("mensagem de negação diz ao coordenador como liberar", () => {
+    expect(mensagemFinanceiro("COORDENADOR")).toMatch(/acesso financeiro.*Equipe/s);
+    expect(mensagemFinanceiro("VISUALIZADOR")).toMatch(/Coordenador autorizado/);
+  });
+});
+
+describe("operação inclui relacionamento e comunicação (v4)", () => {
+  it("coordenador favorita, bloqueia e responde solicitações", () => {
+    expect(pode("COORDENADOR", "relacionamento:gerenciar")).toBe(true);
+    expect(pode("COORDENADOR", "comunicacao:responder")).toBe(true);
+  });
+
+  it("visualizador não", () => {
+    expect(pode("VISUALIZADOR", "relacionamento:gerenciar")).toBe(false);
+    expect(pode("VISUALIZADOR", "comunicacao:responder")).toBe(false);
   });
 });

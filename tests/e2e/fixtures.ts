@@ -73,6 +73,8 @@ export function gerarCnpj(): string {
 // ----------------------------------------------------------------------------
 
 export type PapelFix = "PROPRIETARIO" | "ADMIN" | "COORDENADOR" | "VISUALIZADOR";
+export type FormaPagamentoFix = "PIX" | "DINHEIRO" | "CARTAO_CREDITO";
+export type TipoChavePixFix = "CPF" | "CNPJ" | "EMAIL" | "TELEFONE" | "ALEATORIA";
 export type PlanoFix = "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
 
 export interface EmpresaFix {
@@ -121,12 +123,26 @@ export async function novaEmpresa(
   };
 }
 
-/** Membro adicional da empresa, para testar RBAC por papel. */
-export async function novoMembro(empresaId: number, papel: PapelFix): Promise<MembroFix> {
+/**
+ * Membro adicional da empresa, para testar RBAC por papel.
+ * `autorizadoFinanceiro` cobre o "coordenador autorizado" da v4.
+ */
+export async function novoMembro(
+  empresaId: number,
+  papel: PapelFix,
+  opts: { autorizadoFinanceiro?: boolean } = {},
+): Promise<MembroFix> {
   const u = uid();
   const email = `membro_${u}@e2e.test`;
   const membro = await prisma.membro.create({
-    data: { empresaId, nome: `Membro ${papel} ${u}`, email, senhaHash: SENHA_HASH, papel },
+    data: {
+      empresaId,
+      nome: `Membro ${papel} ${u}`,
+      email,
+      senhaHash: SENHA_HASH,
+      papel,
+      autorizadoFinanceiro: opts.autorizadoFinanceiro ?? false,
+    },
   });
   return { id: membro.id, nome: membro.nome, email, papel, senha: SENHA };
 }
@@ -234,3 +250,65 @@ export async function loginUI(
 
 export const test = base;
 export { expect };
+
+// ----------------------------------------------------------------------------
+// v4 — financeiro, relacionamento e comunicação
+// ----------------------------------------------------------------------------
+
+/**
+ * Cadastra chave PIX cifrada no trabalhador.
+ *
+ * Usa o mesmo módulo da aplicação (`lib/cripto`) de propósito: se a cifragem
+ * mudar de formato, o teste falha junto — fixture que grava por conta própria
+ * esconderia a quebra.
+ */
+export async function definirChavePix(userId: number, tipo: TipoChavePixFix, valor: string) {
+  const { cifrar } = await import("../../src/lib/cripto");
+  return prisma.user.update({
+    where: { id: userId },
+    data: { pixTipo: tipo, pixChaveCifrada: cifrar(valor), pixAtualizadoEm: new Date() },
+  });
+}
+
+/** Pagamento (saldo devido) de um trabalhador em um evento. */
+export async function novoPagamento(
+  eventoId: number,
+  userId: number,
+  empresaId: number,
+  over: Partial<{ valorDevido: number; valorPago: number; forma: FormaPagamentoFix; funcao: string }> = {},
+) {
+  const valorDevido = over.valorDevido ?? 150;
+  const valorPago = over.valorPago ?? 0;
+  return prisma.pagamento.create({
+    data: {
+      eventoId,
+      userId,
+      empresaId,
+      valorDevido,
+      valorPago,
+      status: valorPago <= 0 ? "PENDENTE" : valorPago >= valorDevido ? "PAGO" : "PARCIAL",
+      forma: over.forma,
+      funcao: over.funcao ?? "Apoio",
+    },
+  });
+}
+
+/** Marca um trabalhador como favorito da empresa. */
+export async function favoritar(empresaId: number, userId: number) {
+  return prisma.trabalhadorFavorito.create({ data: { empresaId, userId } });
+}
+
+/** Bloqueia um trabalhador na empresa (bloqueio vigente). */
+export async function bloquear(empresaId: number, userId: number, motivo = "Motivo de teste E2E") {
+  return prisma.trabalhadorBloqueio.create({ data: { empresaId, userId, motivo } });
+}
+
+/** Solicitação do trabalhador durante o evento. */
+export async function novaSolicitacao(
+  eventoId: number,
+  userId: number,
+  tipo: "INTERVALO" | "DESCANSO" | "PROBLEMA" | "AJUDA" | "SUBSTITUICAO" | "FALAR_COORDENACAO" = "INTERVALO",
+  mensagem = "Solicitação de teste E2E",
+) {
+  return prisma.solicitacaoEvento.create({ data: { eventoId, userId, tipo, mensagem } });
+}

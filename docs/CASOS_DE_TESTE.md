@@ -155,13 +155,35 @@ a aplicação em execução + PostgreSQL.
 | CT-87 | Recusa por regra de negócio aparece no formulário e nada é alterado | E2E | ux.spec |
 | CT-88 | Flash na URL: preserva filtros, não acumula, limita tamanho (12 asserts) | Unitário | flash.test |
 
+## v4 fase 2 — Modelagem financeira, PIX cifrado e RBAC financeiro
+
+| CT | Descrição | Tipo | Arquivo |
+| --- | --- | --- | --- |
+| CT-89 | Cifragem AES-256-GCM: reversível, IV aleatório, detecta adulteração (10 asserts) | Unitário | cripto.test |
+| CT-90 | Chave PIX: validação/normalização por tipo e máscara (13 asserts) | Unitário | pix.test |
+| CT-91 | Regras de dinheiro: saldo, status derivado, parcial, recusas (15 asserts) | Unitário | pagamento.test |
+| CT-92 | RBAC financeiro: coordenador só com autorização; visualizador nunca | Unitário | rbac.test |
+| CT-93 | Notificação exige exatamente um destinatário (trabalhador XOR membro) | Integração | schema-v4.test |
+| CT-94 | Pagamento recusa valor negativo e pago acima do devido | Integração | schema-v4.test |
+| CT-95 | Avaliação recusa nota fora de 1..5 nos cinco critérios | Integração | schema-v4.test |
+| CT-96 | Um bloqueio vigente por par empresa×trabalhador, com histórico preservado | Integração | schema-v4.test |
+| CT-97 | Uma contestação em aberto por pagamento | Integração | schema-v4.test |
+| CT-98 | Um fechamento de caixa por evento; check-in/check-out registrados | Integração | schema-v4.test |
+| CT-99 | Empresa que escalou lê a chave PIX decifrada **e** gera auditoria | Integração | pix-leitura.test |
+| CT-100 | Empresa sem escalação não lê a chave e não gera auditoria | Integração | pix-leitura.test |
+| CT-101 | Trabalhador vê a própria chave mascarada, sem auditoria | Integração | pix-leitura.test |
+| CT-102 | Coluna do banco guarda pacote cifrado versionado, não a chave em claro | Integração | pix-leitura.test |
+
 ---
 
 ## Como executar
 
 ```bash
-# Unitários (não precisam de banco)
+# Unitários + integração (a parte de integração precisa do PostgreSQL)
 npm test
+
+# Só os unitários (sem banco)
+npx vitest run tests/unit
 
 # E2E: precisa da app rodando + PostgreSQL
 npm run db:up        # ou docker compose up -d

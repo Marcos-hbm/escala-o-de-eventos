@@ -4,8 +4,24 @@
  *
  * Uso: npm run db:seed
  */
-import { PrismaClient, Genero, StatusVinculo, SolicitadoPor, StatusEvento, StatusInscricao, Papel, Plano, StatusAssinatura } from "@prisma/client";
+import {
+  PrismaClient,
+  Genero,
+  StatusVinculo,
+  SolicitadoPor,
+  StatusEvento,
+  StatusInscricao,
+  Papel,
+  Plano,
+  StatusAssinatura,
+  FormaPagamento,
+  StatusPagamento,
+  TipoChavePix,
+  TipoSolicitacaoEvento,
+  StatusSolicitacao,
+} from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { cifrar, criptoConfigurada } from "../src/lib/cripto";
 
 const prisma = new PrismaClient();
 
@@ -15,6 +31,16 @@ async function main() {
   const senhaHash = await bcrypt.hash("Senha@123", 10);
 
   // Limpeza (ordem respeita FKs).
+  await prisma.fechamentoCaixaItem.deleteMany();
+  await prisma.fechamentoCaixa.deleteMany();
+  await prisma.contestacaoPagamento.deleteMany();
+  await prisma.pagamentoLancamento.deleteMany();
+  await prisma.pagamento.deleteMany();
+  await prisma.mensagemCoordenador.deleteMany();
+  await prisma.solicitacaoEvento.deleteMany();
+  await prisma.registroPresenca.deleteMany();
+  await prisma.trabalhadorFavorito.deleteMany();
+  await prisma.trabalhadorBloqueio.deleteMany();
   await prisma.avaliacao.deleteMany();
   await prisma.notificacao.deleteMany();
   await prisma.inscricao.deleteMany();
@@ -60,7 +86,15 @@ async function main() {
   // Mais membros na produtora para demonstrar o RBAC na tela de Equipe.
   await prisma.membro.createMany({
     data: [
-      { empresaId: produtora.id, nome: "Coord. Operações", email: "coord@cenaviva.com.br", senhaHash, papel: Papel.COORDENADOR },
+      {
+        empresaId: produtora.id,
+        nome: "Coord. Operações",
+        email: "coord@cenaviva.com.br",
+        senhaHash,
+        papel: Papel.COORDENADOR,
+        // v4 — coordenador com acesso financeiro liberado (item 2/13).
+        autorizadoFinanceiro: true,
+      },
       { empresaId: produtora.id, nome: "Financeiro (leitura)", email: "financeiro@cenaviva.com.br", senhaHash, papel: Papel.VISUALIZADOR },
     ],
   });
@@ -74,6 +108,13 @@ async function main() {
   });
 
   // ---- Trabalhadores ----
+  // v4: a chave PIX é gravada CIFRADA. Sem PIX_ENCRYPTION_KEY no .env o seed segue
+  // sem chave em vez de gravar texto puro — melhor um dado ausente que um vazado.
+  const pixOk = criptoConfigurada();
+  if (!pixOk) {
+    console.warn("⚠  PIX_ENCRYPTION_KEY ausente: trabalhadores serão criados sem chave PIX.");
+  }
+  const pix = (valor: string) => (pixOk ? cifrar(valor) : null);
   const ana = await prisma.user.create({
     data: {
       nome: "Ana Souza",
@@ -86,6 +127,9 @@ async function main() {
       habilidades: "Garçom, Bar, Atendimento",
       bio: "3 anos em eventos culturais. Disponível fins de semana.",
       senhaHash,
+      pixTipo: pixOk ? TipoChavePix.EMAIL : null,
+      pixChaveCifrada: pix("ana@exemplo.com"),
+      pixAtualizadoEm: pixOk ? new Date() : null,
     },
   });
 
@@ -100,6 +144,9 @@ async function main() {
       cidade: "Brasília/DF",
       habilidades: "Segurança, Apoio de produção",
       senhaHash,
+      pixTipo: pixOk ? TipoChavePix.CPF : null,
+      pixChaveCifrada: pix("22233344455"),
+      pixAtualizadoEm: pixOk ? new Date() : null,
     },
   });
 
@@ -112,6 +159,9 @@ async function main() {
       telefone: "61988880003",
       genero: Genero.FEMININO,
       senhaHash,
+      pixTipo: pixOk ? TipoChavePix.TELEFONE : null,
+      pixChaveCifrada: pix("+5561988880003"),
+      pixAtualizadoEm: pixOk ? new Date() : null,
     },
   });
 
@@ -195,12 +245,89 @@ async function main() {
     ],
   });
 
+  // ---- v4: financeiro do evento já finalizado ----
+  const escaladosPassados = await prisma.inscricao.findMany({
+    where: { eventoId: feiraPassada.id },
+    select: { id: true, userId: true },
+  });
+  for (const [i, insc] of escaladosPassados.entries()) {
+    const valor = Number(feiraPassada.valorCache);
+    // Ana recebe integral por PIX; Bruno fica com metade paga em dinheiro, para a
+    // tela de pagamentos ter os três estados (pago, parcial e pendente) no seed.
+    const pago = i === 0 ? valor : valor / 2;
+    const forma = i === 0 ? FormaPagamento.PIX : FormaPagamento.DINHEIRO;
+    const pagamento = await prisma.pagamento.create({
+      data: {
+        eventoId: feiraPassada.id,
+        userId: insc.userId,
+        empresaId: produtora.id,
+        valorDevido: valor,
+        valorPago: pago,
+        status: pago >= valor ? StatusPagamento.PAGO : StatusPagamento.PARCIAL,
+        forma,
+        funcao: i === 0 ? "Garçom" : "Segurança",
+        horaEntrada: "16:00",
+        horaSaida: "23:30",
+        quitadoEm: pago >= valor ? new Date() : null,
+      },
+    });
+    await prisma.pagamentoLancamento.create({
+      data: { pagamentoId: pagamento.id, valor: pago, forma, observacao: i === 0 ? "Pago no fechamento" : "Adiantamento" },
+    });
+    await prisma.registroPresenca.create({
+      data: {
+        inscricaoId: insc.id,
+        checkInEm: new Date("2026-05-10T19:00:00.000Z"), // 16:00 em Brasília
+        checkOutEm: new Date("2026-05-11T02:30:00.000Z"), // 23:30 em Brasília
+      },
+    });
+  }
+
+  // Pagamento pendente para o festival (evento futuro, ninguém pago ainda).
+  await prisma.pagamento.create({
+    data: {
+      eventoId: festival.id,
+      userId: ana.id,
+      empresaId: produtora.id,
+      valorDevido: Number(festival.valorCache),
+      funcao: "Garçom",
+      status: StatusPagamento.PENDENTE,
+    },
+  });
+
+  // ---- v4: relacionamento ----
+  await prisma.trabalhadorFavorito.create({
+    data: { empresaId: produtora.id, userId: ana.id, observacao: "Pontual e proativa." },
+  });
+  await prisma.trabalhadorBloqueio.create({
+    data: { empresaId: feiras.id, userId: carla.id, motivo: "Não compareceu ao último evento sem avisar." },
+  });
+
+  // ---- v4: comunicação do evento ----
+  await prisma.solicitacaoEvento.create({
+    data: {
+      eventoId: festival.id,
+      userId: ana.id,
+      tipo: TipoSolicitacaoEvento.INTERVALO,
+      mensagem: "Posso fazer 15 minutos de intervalo às 19h?",
+      status: StatusSolicitacao.EM_ANALISE,
+    },
+  });
+  await prisma.mensagemCoordenador.create({
+    data: {
+      eventoId: festival.id,
+      membroId: (await prisma.membro.findFirstOrThrow({ where: { email: "coord@cenaviva.com.br" } })).id,
+      texto: "Equipe, ponto de encontro às 15h30 no portão B.",
+    },
+  });
+
   console.log("✅ Seed concluído.");
   console.log("   Empresas (membro PROPRIETARIO): contato@cenaviva.com.br | rh@bsbfeiras.com.br");
   console.log("   Equipe da Cena Viva (RBAC): coord@cenaviva.com.br (Coordenador) | financeiro@cenaviva.com.br (Visualizador)");
   console.log("   Planos: Cena Viva = PROFESSIONAL/ATIVA · BSB Feiras = STARTER/TRIAL");
   console.log("   Trabalhadores: ana@exemplo.com | bruno@exemplo.com | carla@exemplo.com");
   console.log("   Senha (todos): Senha@123");
+  console.log("   v4: pagamentos (pago/parcial/pendente), favorito, bloqueio, solicitação e mensagem criados");
 }
 
 main()

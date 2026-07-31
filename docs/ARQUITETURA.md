@@ -49,6 +49,12 @@ Cinco entidades do dicionário do TCC — `users`, `empresas`, `eventos`,
 - `consentimentos` (LGPD)
 - `avaliacoes` (v2 — reputação bidirecional)
 - `membros` e `assinaturas` (v3 — equipe da conta e plano/assinatura)
+- **v4 — financeiro:** `pagamentos` (saldo por evento×trabalhador),
+  `pagamento_lancamentos` (cada movimento: total, parcial, ajuste),
+  `contestacoes_pagamento`, `fechamentos_caixa` e `fechamento_caixa_itens`
+- **v4 — relacionamento:** `trabalhador_favoritos`, `trabalhador_bloqueios`
+- **v4 — comunicação e presença:** `solicitacoes_evento`, `mensagens_coordenador`,
+  `registros_presenca` (check-in/check-out com horário real)
 
 Restrições relevantes:
 
@@ -56,6 +62,13 @@ Restrições relevantes:
 - `inscricoes`: `@@unique(eventoId, userId)` — uma inscrição por evento.
 - `membros`: `email` único (é a credencial de login da conta);
   `assinaturas`: `empresa_id` único (1–1 com a empresa).
+- **v4** — invariantes escritas à mão na migration, porque o Prisma não as modela:
+  `notificacoes` exige exatamente um destinatário (trabalhador XOR membro);
+  `pagamentos` não aceita valor negativo nem pago acima do devido;
+  `pagamento_lancamentos` exige valor positivo; notas de avaliação ficam em 1..5;
+  índices parciais garantem **um** bloqueio vigente por par empresa×trabalhador e
+  **uma** contestação em aberto por pagamento. Detalhes e motivos no
+  [ADR 0005](adr/0005-chave-pix-cifrada-e-rbac-financeiro.md).
 - FKs com `onDelete: Cascade` (ou `SetNull` em consentimento) garantem
   integridade referencial (RNF05).
 
@@ -64,6 +77,33 @@ Restrições relevantes:
 - **Vínculo:** `PENDENTE → ATIVO | RECUSADO`; `ATIVO → DESVINCULADO`.
 - **Evento:** `PUBLICADO → FINALIZADO` (reabrível); `→ CANCELADO`.
 - **Inscrição:** `INSCRITO → ESCALADO | RECUSADO_EMPRESA | CANCELADO_TRABALHADOR`.
+
+## Financeiro e dados sensíveis (v4)
+
+```
+Empresa (tenant)
+  └── Evento
+        ├── Inscricao ──── RegistroPresenca      (check-in / check-out)
+        ├── Pagamento ─┬── PagamentoLancamento   (histórico: total, parcial, ajuste)
+        │              └── ContestacaoPagamento  (aberta pelo trabalhador)
+        ├── FechamentoCaixa ── FechamentoCaixaItem (um por trabalhador conferido)
+        ├── SolicitacaoEvento                    (intervalo, ajuda, substituição…)
+        └── MensagemCoordenador                  (equipe ou individual)
+```
+
+- **Dinheiro** em `Decimal(10,2)`; as regras de cálculo ficam em
+  `lib/domain/pagamento.ts` (funções puras: saldo, status derivado, lançamento
+  parcial, resumo) e o I/O nas server actions. Float em dinheiro é erro de
+  arredondamento garantido.
+- **Chave PIX** cifrada com AES-256-GCM (`lib/cripto.ts`), lida por um único caminho
+  auditado (`lib/pix-leitura.ts`) que exige permissão financeira **e** o trabalhador
+  escalado num evento da empresa. Ver
+  [ADR 0005](adr/0005-chave-pix-cifrada-e-rbac-financeiro.md).
+- **RBAC financeiro**: `financeiro:gerenciar`, `financeiro:ver` e `pix:ver`.
+  Proprietário e Administrador pelo papel; Coordenador só com
+  `Membro.autorizadoFinanceiro`; Visualizador nunca.
+- **Notificações** passam a ter destinatário polimórfico (trabalhador **ou** membro),
+  sem o que "o coordenador recebe em tempo real" não teria onde chegar.
 
 ## Apresentação (v4 fase 1)
 

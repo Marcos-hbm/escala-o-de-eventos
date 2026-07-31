@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatarBRL } from "./dinheiro";
 
 /** Combina classes Tailwind resolvendo conflitos. */
 export function cn(...inputs: ClassValue[]) {
@@ -12,10 +13,9 @@ export function cn(...inputs: ClassValue[]) {
  * America/Sao_Paulo) é explícita. Não formatar data por aqui.
  */
 
-/** Formata Decimal/number como moeda BRL. */
+/** Formata Decimal/number como moeda BRL (delega para `lib/dinheiro.ts`). */
 export function formatBRL(valor: number | string): string {
-  const n = typeof valor === "string" ? Number(valor) : valor;
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return formatarBRL(valor);
 }
 
 /** Aplica máscara visual de CPF: 000.000.000-00 */

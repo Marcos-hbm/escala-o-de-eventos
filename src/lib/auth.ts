@@ -3,7 +3,15 @@ import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { prisma } from "./prisma";
 import { getSession, type SessionPayload, type TipoConta } from "./session";
-import { checarPermissao, pode, type PapelId, type Permissao } from "./rbac";
+import {
+  checarPermissao,
+  ehPermissaoFinanceira,
+  mensagemFinanceiro,
+  pode,
+  podeFinanceiro,
+  type PapelId,
+  type Permissao,
+} from "./rbac";
 
 export async function hashSenha(senha: string): Promise<string> {
   return bcrypt.hash(senha, 10);
@@ -49,6 +57,7 @@ export async function verificarCredenciais(
       membroId: membro.id,
       papel: membro.papel,
       membroNome: membro.nome,
+      financeiro: membro.autorizadoFinanceiro,
     };
   }
 }
@@ -81,7 +90,7 @@ export async function requireEmpresa(): Promise<SessionPayload> {
   if (s.membroId != null) {
     const membro = await prisma.membro.findUnique({
       where: { id: s.membroId },
-      select: { ativo: true, papel: true, empresaId: true },
+      select: { ativo: true, papel: true, empresaId: true, autorizadoFinanceiro: true },
     });
     if (!membro || !membro.ativo || membro.empresaId !== s.sub) {
       // O cookie não é apagado aqui: em Server Components o Next 15 não permite
@@ -89,8 +98,9 @@ export async function requireEmpresa(): Promise<SessionPayload> {
       // toda tela da empresa revalida o membro — e o próximo login o substitui.
       redirect("/login?tipo=EMPRESA&erro=acesso_revogado");
     }
-    // O papel vale o que está no banco (troca de papel tem efeito imediato).
-    return { ...s, papel: membro.papel };
+    // Papel e autorização financeira valem o que está no banco (troca de papel ou
+    // revogação do acesso financeiro têm efeito imediato).
+    return { ...s, papel: membro.papel, financeiro: membro.autorizadoFinanceiro };
   }
   return s;
 }
@@ -104,9 +114,15 @@ export function papelDaSessao(s: SessionPayload): PapelId {
   return s.papel ?? "PROPRIETARIO";
 }
 
-/** Atalho de leitura para páginas/UI. */
+/**
+ * Atalho de leitura para páginas/UI.
+ *
+ * Permissões financeiras consideram também a flag do membro (coordenador
+ * autorizado) — ver `podeFinanceiro` em `lib/rbac.ts`.
+ */
 export function sessaoPode(s: SessionPayload, permissao: Permissao): boolean {
-  return s.tipo === "EMPRESA" && pode(papelDaSessao(s), permissao);
+  if (s.tipo !== "EMPRESA") return false;
+  return podeFinanceiro(papelDaSessao(s), permissao, s.financeiro === true);
 }
 
 /**
@@ -114,7 +130,10 @@ export function sessaoPode(s: SessionPayload, permissao: Permissao): boolean {
  * necessário) quando negado.
  */
 export function erroDePermissao(s: SessionPayload, permissao: Permissao): string | null {
-  return checarPermissao(papelDaSessao(s), permissao);
+  if (sessaoPode(s, permissao)) return null;
+  return ehPermissaoFinanceira(permissao)
+    ? mensagemFinanceiro(papelDaSessao(s))
+    : checarPermissao(papelDaSessao(s), permissao);
 }
 
 /**

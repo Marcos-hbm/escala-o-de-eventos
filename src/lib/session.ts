@@ -33,6 +33,8 @@ export interface SessionPayload {
   membroId?: number;
   papel?: PapelId;
   membroNome?: string;
+  /// v4 — "coordenador autorizado" do financeiro (`Membro.autorizadoFinanceiro`).
+  financeiro?: boolean;
 }
 
 function ehPapel(v: unknown): v is PapelId {
@@ -58,6 +60,7 @@ export async function signSession(payload: SessionPayload): Promise<string> {
     ...(payload.membroId != null ? { membroId: payload.membroId } : {}),
     ...(payload.papel ? { papel: payload.papel } : {}),
     ...(payload.membroNome ? { membroNome: payload.membroNome } : {}),
+    ...(payload.financeiro ? { financeiro: true } : {}),
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(payload.sub))
@@ -81,6 +84,7 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
         ...(typeof payload.membroId === "number" ? { membroId: payload.membroId } : {}),
         ...(ehPapel(payload.papel) ? { papel: payload.papel } : {}),
         ...(payload.membroNome ? { membroNome: String(payload.membroNome) } : {}),
+    ...(payload.financeiro === true ? { financeiro: true } : {}),
       };
     }
     return null;

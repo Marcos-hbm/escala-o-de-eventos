@@ -136,7 +136,9 @@ describe("tempo relativo (notificações)", () => {
  */
 describe("nenhuma formatação de data fora de lib/datetime.ts", () => {
   const PROIBIDO = /toLocaleDateString|toLocaleTimeString|toLocaleString\(\s*["']pt-BR/;
-  const PERMITIDOS = ["src/lib/datetime.ts", "src/lib/utils.ts", "src/lib/csv.ts"];
+  // `dinheiro.ts` também usa toLocaleString, mas para MOEDA — é o ponto único
+  // equivalente a este módulo, e não formata data.
+  const PERMITIDOS = ["src/lib/datetime.ts", "src/lib/dinheiro.ts"];
 
   function arquivos(dir: string): string[] {
     return readdirSync(dir).flatMap((nome) => {

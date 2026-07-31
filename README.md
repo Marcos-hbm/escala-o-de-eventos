@@ -10,6 +10,31 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
 
 ---
 
+## Novidades (v4, fase 2) — modelagem financeira, PIX cifrado e RBAC financeiro
+
+- **Financeiro modelado em três níveis**: `pagamentos` (o saldo devido por
+  evento×trabalhador), `pagamento_lancamentos` (cada movimento — total, parcial,
+  ajuste — que é o histórico financeiro) e `fechamentos_caixa` com um item por
+  trabalhador conferido. Valores em `Decimal(10,2)`.
+- **Chave PIX cifrada em repouso** (AES-256-GCM). Um dump do banco não expõe chaves;
+  a leitura passa por um caminho único que exige permissão financeira **e** o
+  trabalhador escalado num evento da empresa, e **registra cada visualização** na
+  trilha de auditoria. O trabalhador vê a própria chave mascarada.
+- **RBAC financeiro sem inventar papel novo**: Proprietário e Administrador pelo
+  papel; Coordenador só com "acesso financeiro" marcado em Equipe; Visualizador
+  nunca, nem com a flag.
+- **Relacionamento e comunicação modelados**: favoritos, bloqueio com motivo e
+  histórico, solicitações do evento (intervalo, ajuda, substituição…), mensagens da
+  coordenação e check-in/check-out com horário real.
+- **Invariantes no banco**, não só na aplicação: notificação com destinatário
+  exclusivo, pagamento que não excede o devido, notas 1..5, um bloqueio vigente por
+  par e uma contestação em aberto por pagamento.
+
+Decisões em [`docs/adr/0005`](docs/adr/0005-chave-pix-cifrada-e-rbac-financeiro.md).
+As **telas** do financeiro vêm na fase 3.
+
+---
+
 ## Novidades (v4, fase 1) — padrão brasileiro de data/hora e fundação de UX
 
 - **Data e hora em pt-BR de verdade**: `DD/MM/AAAA` e `HH:mm` (24 h), com fuso de
@@ -89,11 +114,12 @@ Detalhes de implementação em [`docs/V2_FUNCOES.md`](docs/V2_FUNCOES.md).
 | --- | --- | --- |
 | Framework | **Next.js 16** (App Router, React 19, Server Actions) | Full-stack em um só projeto, tipos ponta a ponta |
 | Linguagem | **TypeScript** (strict) | Segurança de tipos front + back |
-| Banco | **PostgreSQL 16** + **Prisma 6** | Integridade referencial, enums nativos, migrations versionadas |
+| Banco | **PostgreSQL 16** + **Prisma 6** | Integridade referencial, enums nativos, migrations versionadas, CHECK constraints e índices parciais |
+| Cripto | **AES-256-GCM** (`node:crypto`) | Chave PIX cifrada em repouso, com detecção de adulteração |
 | Auth | **Sessão JWT** (`jose`) + **bcryptjs** | Credenciais em tabelas separadas (trabalhador / membro da empresa), cookie httpOnly, RBAC por papel — mesmo padrão credentials+JWT do Auth.js, sob controle total |
 | Validação | **Zod** | Schemas reaproveitados em server actions e testes |
 | UI | **Tailwind CSS v4** + componentes próprios + **lucide-react** | Responsivo, tema claro/escuro |
-| Testes | **Vitest** (unitário) + **Playwright** (E2E) | Mesma ferramenta de UI do padrão de QA |
+| Testes | **Vitest** (unitário + integração) + **Playwright** (E2E) | Mesma ferramenta de UI do padrão de QA |
 
 > **Nota sobre autenticação:** o TCC previa PHP/MySQL. Aqui a stack foi
 > modernizada conforme solicitado. A sessão usa o padrão *credentials + JWT*
@@ -166,7 +192,8 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 93 testes unitários (Vitest) — sem banco
+npm test                      # 157 testes: 139 unitários + 18 de integração (PostgreSQL)
+npx vitest run tests/unit     # só os unitários (sem banco)
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 

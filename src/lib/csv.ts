@@ -7,6 +7,7 @@
  * não deve exigir "importar dados" nem mostrar 2026-08-15.
  */
 import { formatarDataCivil } from "./datetime";
+import { formatarNumeroBR } from "./dinheiro";
 
 export interface LinhaEscala {
   nome: string;
@@ -17,12 +18,7 @@ export interface LinhaEscala {
   status: string;
 }
 
-/** Número em padrão pt-BR para planilha: 1234.5 -> "1.234,50". */
-export function formatarNumeroBR(valor: number | string): string {
-  const n = typeof valor === "string" ? Number(valor) : valor;
-  if (!Number.isFinite(n)) return "";
-  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+export { formatarNumeroBR } from "./dinheiro";
 
 /** Escapa um campo conforme RFC 4180 (aspas, vírgulas, quebras de linha). */
 export function escapeCsvField(value: string): string {

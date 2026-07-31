@@ -69,6 +69,16 @@ enum TipoNotificacao {
   ESCALADO
   EVENTO_ATUALIZADO
   EVENTO_CANCELADO
+  // v4 — financeiro e comunicação do evento
+  PAGAMENTO_REGISTRADO
+  PAGAMENTO_PARCIAL
+  FECHAMENTO_INICIADO
+  CONTESTACAO_ABERTA
+  CONTESTACAO_RESPONDIDA
+  SOLICITACAO_RECEBIDA
+  SOLICITACAO_RESPONDIDA
+  MENSAGEM_COORDENACAO
+  AVALIACAO_RECEBIDA
 }
 
 enum TipoAtor {
@@ -106,39 +116,117 @@ enum Papel {
   VISUALIZADOR
 }
 
+/// Forma de pagamento do cachê (v4). O enum é o ponto único de extensão: novas
+/// formas (transferência, carteira digital) entram aqui e o resto do sistema
+/// apenas as exibe — nenhuma regra depende de uma forma específica.
+enum FormaPagamento {
+  PIX
+  DINHEIRO
+  CARTAO_CREDITO
+}
+
+/// Situação financeira de um pagamento ao trabalhador (v4).
+/// PARCIAL existe porque o fechamento de caixa admite adiantamento.
+enum StatusPagamento {
+  PENDENTE
+  PARCIAL
+  PAGO
+  CANCELADO
+}
+
+/// Contestação de pagamento aberta pelo trabalhador (v4).
+enum StatusContestacao {
+  ABERTA
+  EM_ANALISE
+  RESOLVIDA
+  REJEITADA
+}
+
+/// Fechamento de caixa do evento, conduzido pelo coordenador (v4).
+enum StatusFechamentoCaixa {
+  EM_ANDAMENTO
+  CONCLUIDO
+  CANCELADO
+}
+
+/// Pedidos que o trabalhador envia à coordenação durante o evento (v4).
+enum TipoSolicitacaoEvento {
+  INTERVALO
+  DESCANSO
+  PROBLEMA
+  AJUDA
+  SUBSTITUICAO
+  FALAR_COORDENACAO
+}
+
+/// Ciclo de vida da solicitação (v4).
+enum StatusSolicitacao {
+  EM_ANALISE
+  AGUARDANDO
+  APROVADA
+  RECUSADA
+  FINALIZADA
+}
+
+/// Tipo da chave PIX informada pelo trabalhador (v4). A chave em si é guardada
+/// cifrada — ver `lib/cripto.ts` e ADR 0005.
+enum TipoChavePix {
+  CPF
+  CNPJ
+  EMAIL
+  TELEFONE
+  ALEATORIA
+}
+
 // --------------------------------------------------------------------------
 // Tabela 01 — Usuários (trabalhadores)
 // --------------------------------------------------------------------------
 
 model User {
-  id             Int       @id @default(autoincrement())
-  nome           String    @db.VarChar(120)
-  email          String    @unique @db.VarChar(160)
-  dataNascimento DateTime  @map("data_nascimento") @db.Date
-  cpf            String    @unique @db.Char(11)
-  telefone       String    @db.VarChar(11)
-  senhaHash      String    @map("senha_hash") @db.VarChar(255)
-  fotoPath       String?   @map("foto_path") @db.VarChar(255)
-  genero         Genero    @default(NAO_INFORMADO)
+  id             Int      @id @default(autoincrement())
+  nome           String   @db.VarChar(120)
+  email          String   @unique @db.VarChar(160)
+  dataNascimento DateTime @map("data_nascimento") @db.Date
+  cpf            String   @unique @db.Char(11)
+  telefone       String   @db.VarChar(11)
+  senhaHash      String   @map("senha_hash") @db.VarChar(255)
+  fotoPath       String?  @map("foto_path") @db.VarChar(255)
+  genero         Genero   @default(NAO_INFORMADO)
 
   // Perfil profissional (v2): melhora matching e produtividade da escalação.
-  cidade         String?   @db.VarChar(120)
-  bio            String?   @db.VarChar(500)
-  habilidades    String?   @db.VarChar(400) // lista separada por vírgula
+  cidade      String? @db.VarChar(120)
+  bio         String? @db.VarChar(500)
+  habilidades String? @db.VarChar(400) // lista separada por vírgula
+
+  // Dados de recebimento (v4). A chave PIX é dado pessoal sob LGPD e fica
+  // CIFRADA na coluna (AES-256-GCM, `lib/cripto.ts`): um dump do banco não
+  // expõe chaves. A empresa só decifra com permissão financeira e vínculo com o
+  // trabalhador escalado, e cada leitura vira registro de auditoria (ADR 0005).
+  pixTipo         TipoChavePix? @map("pix_tipo")
+  pixChaveCifrada String?       @map("pix_chave_cifrada") @db.Text
+  pixAtualizadoEm DateTime?     @map("pix_atualizado_em")
 
   // LGPD: anonimização (direito ao esquecimento) sem quebrar integridade
   // referencial de eventos históricos já ocorridos.
-  anonimizadoEm  DateTime? @map("anonimizado_em")
-  ativo          Boolean   @default(true)
+  anonimizadoEm DateTime? @map("anonimizado_em")
+  ativo         Boolean   @default(true)
 
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  vinculos          Vinculo[]
-  inscricoes        Inscricao[]
-  notificacoes      Notificacao[]
-  consentimentos    Consentimento[]
-  avaliacoesRecebidas Avaliacao[] @relation("AvaliacoesDoTrabalhador")
+  vinculos            Vinculo[]
+  inscricoes          Inscricao[]
+  notificacoes        Notificacao[]
+  consentimentos      Consentimento[]
+  avaliacoesRecebidas Avaliacao[]     @relation("AvaliacoesDoTrabalhador")
+
+  // v4
+  pagamentos         Pagamento[]
+  contestacoes       ContestacaoPagamento[]
+  favoritadoPor      TrabalhadorFavorito[]
+  bloqueios          TrabalhadorBloqueio[]
+  solicitacoes       SolicitacaoEvento[]
+  mensagensRecebidas MensagemCoordenador[]
 
   @@map("users")
 }
@@ -148,27 +236,33 @@ model User {
 // --------------------------------------------------------------------------
 
 model Empresa {
-  id            Int       @id @default(autoincrement())
-  nome          String    @db.VarChar(160)
-  cnpj          String    @unique @db.Char(14)
-  email         String    @unique @db.VarChar(160)
-  telefone      String    @db.VarChar(11)
-  senhaHash     String    @map("senha_hash") @db.VarChar(255)
-  fotoPath      String?   @map("foto_path") @db.VarChar(255)
+  id        Int     @id @default(autoincrement())
+  nome      String  @db.VarChar(160)
+  cnpj      String  @unique @db.Char(14)
+  email     String  @unique @db.VarChar(160)
+  telefone  String  @db.VarChar(11)
+  senhaHash String  @map("senha_hash") @db.VarChar(255)
+  fotoPath  String? @map("foto_path") @db.VarChar(255)
 
   anonimizadoEm DateTime? @map("anonimizado_em")
   ativo         Boolean   @default(true)
 
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  eventos   Evento[]
-  vinculos  Vinculo[]
+  eventos             Evento[]
+  vinculos            Vinculo[]
   avaliacoesRecebidas Avaliacao[] @relation("AvaliacoesDaEmpresa")
 
   // SaaS: usuários da conta (RBAC) e assinatura/plano (multi-tenant).
   membros    Membro[]
   assinatura Assinatura?
+
+  // v4 — financeiro e relacionamento
+  pagamentos  Pagamento[]
+  fechamentos FechamentoCaixa[]
+  favoritos   TrabalhadorFavorito[]
+  bloqueios   TrabalhadorBloqueio[]
 
   @@map("empresas")
 }
@@ -182,18 +276,36 @@ model Empresa {
 // preservado e ganhamos time + papéis sem reescrever as consultas existentes.
 // --------------------------------------------------------------------------
 model Membro {
-  id        Int      @id @default(autoincrement())
-  empresaId Int      @map("empresa_id")
-  nome      String   @db.VarChar(120)
-  email     String   @unique @db.VarChar(160)
-  senhaHash String   @map("senha_hash") @db.VarChar(255)
-  papel     Papel    @default(COORDENADOR)
-  ativo     Boolean  @default(true)
+  id        Int     @id @default(autoincrement())
+  empresaId Int     @map("empresa_id")
+  nome      String  @db.VarChar(120)
+  email     String  @unique @db.VarChar(160)
+  senhaHash String  @map("senha_hash") @db.VarChar(255)
+  papel     Papel   @default(COORDENADOR)
+  ativo     Boolean @default(true)
+
+  /// v4 — "coordenador autorizado" da especificação: libera o financeiro para um
+  /// COORDENADOR específico, sem criar um quinto papel. PROPRIETARIO e ADMIN têm
+  /// acesso financeiro pelo papel; VISUALIZADOR nunca tem, mesmo com a flag.
+  autorizadoFinanceiro Boolean @default(false) @map("autorizado_financeiro")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  // v4 — rastreabilidade de quem agiu
+  notificacoes            Notificacao[]
+  pagamentosRegistrados   Pagamento[]            @relation("PagamentoRegistradoPor")
+  lancamentos             PagamentoLancamento[]
+  contestacoesRespondidas ContestacaoPagamento[]
+  fechamentosIniciados    FechamentoCaixa[]
+  favoritosCriados        TrabalhadorFavorito[]
+  bloqueiosAplicados      TrabalhadorBloqueio[]  @relation("BloqueioAplicadoPor")
+  bloqueiosRemovidos      TrabalhadorBloqueio[]  @relation("BloqueioRemovidoPor")
+  solicitacoesRespondidas SolicitacaoEvento[]
+  mensagensEnviadas       MensagemCoordenador[]
+  presencasRegistradas    RegistroPresenca[]
 
   @@index([empresaId])
   @@map("membros")
@@ -227,29 +339,36 @@ model Assinatura {
 // --------------------------------------------------------------------------
 
 model Evento {
-  id         Int          @id @default(autoincrement())
-  empresaId  Int          @map("empresa_id")
-  nome       String       @db.VarChar(180)
-  descricao  String?
-  dataEvento DateTime     @map("data_evento") @db.Date
+  id          Int          @id @default(autoincrement())
+  empresaId   Int          @map("empresa_id")
+  nome        String       @db.VarChar(180)
+  descricao   String?
+  dataEvento  DateTime     @map("data_evento") @db.Date
   // Extensões dos protótipos de tela (local, vagas, funções, horário).
-  local      String?      @db.VarChar(200)
-  horaInicio String?      @map("hora_inicio") @db.VarChar(5) // "HH:MM"
-  vagas      Int          @default(1)
-  funcoes    String?      @db.VarChar(400) // ex.: "Garçom, Bilheteiro, Segurança"
-  valorCache Decimal      @default(0.00) @map("valor_cache") @db.Decimal(10, 2)
+  local       String?      @db.VarChar(200)
+  horaInicio  String?      @map("hora_inicio") @db.VarChar(5) // "HH:MM"
+  vagas       Int          @default(1)
+  funcoes     String?      @db.VarChar(400) // ex.: "Garçom, Bilheteiro, Segurança"
+  valorCache  Decimal      @default(0.00) @map("valor_cache") @db.Decimal(10, 2)
   observacoes String?
-  status     StatusEvento @default(PUBLICADO)
+  status      StatusEvento @default(PUBLICADO)
 
-  createdAt  DateTime     @default(now()) @map("created_at")
-  updatedAt  DateTime     @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  empresa    Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  empresa    Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
   inscricoes Inscricao[]
   avaliacoes Avaliacao[]
 
+  // v4
+  pagamentos   Pagamento[]
+  fechamento   FechamentoCaixa?
+  solicitacoes SolicitacaoEvento[]
+  mensagens    MensagemCoordenador[]
+
   @@index([empresaId])
   @@index([dataEvento])
+  @@index([empresaId, status])
   @@map("eventos")
 }
 
@@ -265,8 +384,8 @@ model Vinculo {
   solicitadoPor SolicitadoPor @map("solicitado_por")
   favorito      Boolean       @default(false)
 
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
@@ -283,16 +402,19 @@ model Vinculo {
 // --------------------------------------------------------------------------
 
 model Inscricao {
-  id        Int             @id @default(autoincrement())
-  eventoId  Int             @map("evento_id")
-  userId    Int             @map("user_id")
-  status    StatusInscricao @default(INSCRITO)
+  id       Int             @id @default(autoincrement())
+  eventoId Int             @map("evento_id")
+  userId   Int             @map("user_id")
+  status   StatusInscricao @default(INSCRITO)
 
-  createdAt DateTime        @default(now()) @map("created_at")
-  updatedAt DateTime        @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // v4 — check-in/check-out com horário real (o status continua sendo o resumo).
+  presenca RegistroPresenca?
 
   // Um trabalhador só se inscreve uma vez por evento (RF13/RF14).
   @@unique([eventoId, userId])
@@ -305,9 +427,17 @@ model Inscricao {
 // Notificações internas (RF15)
 // --------------------------------------------------------------------------
 
+/// Notificação interna (RF15).
+///
+/// v4: o destinatário passou a ser polimórfico — trabalhador (`user_id`) **ou**
+/// membro da empresa (`membro_id`). Sem isso, "o coordenador recebe em tempo real"
+/// (comunicação do evento, fechamento de caixa, contestação) não tinha onde
+/// chegar. A regra "exatamente um dos dois" é garantida por CHECK constraint na
+/// migration, porque o Prisma não modela XOR entre colunas.
 model Notificacao {
   id        Int             @id @default(autoincrement())
-  userId    Int             @map("user_id")
+  userId    Int?            @map("user_id")
+  membroId  Int?            @map("membro_id")
   tipo      TipoNotificacao
   titulo    String          @db.VarChar(160)
   mensagem  String          @db.VarChar(500)
@@ -315,9 +445,11 @@ model Notificacao {
   lida      Boolean         @default(false)
   createdAt DateTime        @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  membro Membro? @relation(fields: [membroId], references: [id], onDelete: Cascade)
 
   @@index([userId, lida])
+  @@index([membroId, lida])
   @@map("notificacoes")
 }
 
@@ -326,15 +458,15 @@ model Notificacao {
 // --------------------------------------------------------------------------
 
 model AuditLog {
-  id        Int      @id @default(autoincrement())
-  atorTipo  TipoAtor @map("ator_tipo")
-  atorId    Int?     @map("ator_id")
-  acao      String   @db.VarChar(80) // ex.: "LOGIN", "EVENTO_CRIADO"
-  entidade  String?  @db.VarChar(80) // ex.: "Evento"
-  entidadeId Int?    @map("entidade_id")
-  detalhe   String?  @db.VarChar(500)
-  ip        String?  @db.VarChar(45)
-  createdAt DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  atorTipo   TipoAtor @map("ator_tipo")
+  atorId     Int?     @map("ator_id")
+  acao       String   @db.VarChar(80) // ex.: "LOGIN", "EVENTO_CRIADO"
+  entidade   String?  @db.VarChar(80) // ex.: "Evento"
+  entidadeId Int?     @map("entidade_id")
+  detalhe    String?  @db.VarChar(500)
+  ip         String?  @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@index([atorTipo, atorId])
   @@index([acao])
@@ -346,14 +478,14 @@ model AuditLog {
 // --------------------------------------------------------------------------
 
 model Consentimento {
-  id        Int      @id @default(autoincrement())
-  userId    Int?     @map("user_id")
+  id         Int      @id @default(autoincrement())
+  userId     Int?     @map("user_id")
   // Finalidade do tratamento consentido, ex.: "termos_e_privacidade".
-  finalidade String  @db.VarChar(120)
-  versao    String   @db.VarChar(20) // versão do documento aceito
-  concedido Boolean  @default(true)
-  ip        String?  @db.VarChar(45)
-  createdAt DateTime @default(now()) @map("created_at")
+  finalidade String   @db.VarChar(120)
+  versao     String   @db.VarChar(20) // versão do documento aceito
+  concedido  Boolean  @default(true)
+  ip         String?  @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at")
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
@@ -366,14 +498,25 @@ model Consentimento {
 // --------------------------------------------------------------------------
 
 model Avaliacao {
-  id         Int            @id @default(autoincrement())
-  eventoId   Int            @map("evento_id")
-  empresaId  Int            @map("empresa_id")
-  userId     Int            @map("user_id")
-  autor      AutorAvaliacao // quem avaliou (EMPRESA avalia o trabalhador; TRABALHADOR avalia a empresa)
-  nota       Int            // 1..5
-  comentario String?        @db.VarChar(500)
-  createdAt  DateTime       @default(now()) @map("created_at")
+  id                  Int            @id @default(autoincrement())
+  eventoId            Int            @map("evento_id")
+  empresaId           Int            @map("empresa_id")
+  userId              Int            @map("user_id")
+  autor               AutorAvaliacao // quem avaliou (EMPRESA avalia o trabalhador; TRABALHADOR avalia a empresa)
+  /// Nota geral 1..5. Quando os critérios abaixo são informados, é a média deles
+  /// arredondada — mantida como coluna própria para a reputação (`lib/reputacao.ts`)
+  /// e o score de escalação continuarem funcionando sem reescrita, inclusive para
+  /// as avaliações gravadas antes da v4 (que não têm critérios).
+  nota                Int
+  // v4 — avaliação por critérios (só a empresa avalia por critério; nullable
+  // porque avaliações antigas e as do trabalhador não os preenchem).
+  notaPontualidade    Int?           @map("nota_pontualidade")
+  notaComunicacao     Int?           @map("nota_comunicacao")
+  notaTrabalhoEquipe  Int?           @map("nota_trabalho_equipe")
+  notaQualidade       Int?           @map("nota_qualidade")
+  notaComprometimento Int?           @map("nota_comprometimento")
+  comentario          String?        @db.VarChar(500)
+  createdAt           DateTime       @default(now()) @map("created_at")
 
   evento  Evento  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
   empresa Empresa @relation("AvaliacoesDaEmpresa", fields: [empresaId], references: [id], onDelete: Cascade)
@@ -384,4 +527,282 @@ model Avaliacao {
   @@index([userId])
   @@index([empresaId])
   @@map("avaliacoes")
+}
+
+// ==========================================================================
+// v4 — FINANCEIRO
+//
+// Modelagem em três níveis, de propósito:
+//   Pagamento            → o que é devido a um trabalhador por um evento (1 linha
+//                          por par evento×trabalhador; é o "saldo").
+//   PagamentoLancamento  → cada movimento (pagamento total, adiantamento, ajuste).
+//                          É o histórico financeiro pedido no item 10 e o que
+//                          permite pagamento parcial sem perder rastro.
+//   FechamentoCaixa      → o ato do coordenador de fechar o caixa do evento, com
+//                          um item por trabalhador conferido.
+//
+// Valores em Decimal(10,2): dinheiro em float é erro de arredondamento garantido.
+// ==========================================================================
+
+/// Saldo devido a um trabalhador por um evento.
+model Pagamento {
+  id        Int @id @default(autoincrement())
+  eventoId  Int @map("evento_id")
+  userId    Int @map("user_id")
+  /// Denormalizado a partir do evento para escopar o histórico financeiro da
+  /// empresa sem join extra (é o tenant, nunca muda depois de criado).
+  empresaId Int @map("empresa_id")
+
+  valorDevido Decimal         @default(0.00) @map("valor_devido") @db.Decimal(10, 2)
+  valorPago   Decimal         @default(0.00) @map("valor_pago") @db.Decimal(10, 2)
+  status      StatusPagamento @default(PENDENTE)
+  forma       FormaPagamento?
+
+  /// Função exercida e horário trabalhado aparecem na tela de fechamento; ficam
+  /// aqui porque descrevem o serviço pago, não a inscrição.
+  funcao      String? @db.VarChar(120)
+  horaEntrada String? @map("hora_entrada") @db.VarChar(5) // "HH:MM"
+  horaSaida   String? @map("hora_saida") @db.VarChar(5)
+  observacoes String? @db.VarChar(500)
+
+  registradoPorMembroId Int?      @map("registrado_por_membro_id")
+  quitadoEm             DateTime? @map("quitado_em")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  evento          Evento                 @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  user            User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  empresa         Empresa                @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  registradoPor   Membro?                @relation("PagamentoRegistradoPor", fields: [registradoPorMembroId], references: [id], onDelete: SetNull)
+  lancamentos     PagamentoLancamento[]
+  contestacoes    ContestacaoPagamento[]
+  itensFechamento FechamentoCaixaItem[]
+
+  // Um saldo por trabalhador por evento.
+  @@unique([eventoId, userId])
+  @@index([empresaId, status])
+  @@index([userId, status])
+  @@map("pagamentos")
+}
+
+/// Movimento financeiro sobre um pagamento (histórico do item 10).
+model PagamentoLancamento {
+  id          Int            @id @default(autoincrement())
+  pagamentoId Int            @map("pagamento_id")
+  valor       Decimal        @db.Decimal(10, 2)
+  forma       FormaPagamento
+  observacao  String?        @db.VarChar(300)
+
+  registradoPorMembroId Int?     @map("registrado_por_membro_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  pagamento     Pagamento @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  registradoPor Membro?   @relation(fields: [registradoPorMembroId], references: [id], onDelete: SetNull)
+
+  @@index([pagamentoId])
+  @@map("pagamento_lancamentos")
+}
+
+/// Contestação de pagamento aberta pelo trabalhador (item 6).
+model ContestacaoPagamento {
+  id          Int               @id @default(autoincrement())
+  pagamentoId Int               @map("pagamento_id")
+  userId      Int               @map("user_id")
+  motivo      String            @db.VarChar(120)
+  descricao   String            @db.VarChar(1000)
+  status      StatusContestacao @default(ABERTA)
+
+  /// Anexo de comprovante é "futuramente" na especificação: quando entrar, vira
+  /// tabela própria (um anexo por linha), não coluna aqui.
+  resposta              String?   @db.VarChar(1000)
+  respondidoPorMembroId Int?      @map("respondido_por_membro_id")
+  respondidoEm          DateTime? @map("respondido_em")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  pagamento     Pagamento @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  respondidoPor Membro?   @relation(fields: [respondidoPorMembroId], references: [id], onDelete: SetNull)
+
+  @@index([pagamentoId])
+  @@index([userId, status])
+  @@map("contestacoes_pagamento")
+}
+
+/// Fechamento de caixa do evento (item 9). Um por evento; reabrir muda o status.
+model FechamentoCaixa {
+  id        Int                   @id @default(autoincrement())
+  eventoId  Int                   @unique @map("evento_id")
+  empresaId Int                   @map("empresa_id")
+  status    StatusFechamentoCaixa @default(EM_ANDAMENTO)
+
+  iniciadoPorMembroId Int?      @map("iniciado_por_membro_id")
+  iniciadoEm          DateTime  @default(now()) @map("iniciado_em")
+  concluidoEm         DateTime? @map("concluido_em")
+  observacoes         String?   @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  evento      Evento                @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  empresa     Empresa               @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  iniciadoPor Membro?               @relation(fields: [iniciadoPorMembroId], references: [id], onDelete: SetNull)
+  itens       FechamentoCaixaItem[]
+
+  @@index([empresaId, status])
+  @@map("fechamentos_caixa")
+}
+
+/// Conferência de um trabalhador dentro do fechamento de caixa.
+model FechamentoCaixaItem {
+  id           Int             @id @default(autoincrement())
+  fechamentoId Int             @map("fechamento_id")
+  pagamentoId  Int             @map("pagamento_id")
+  valorDevido  Decimal         @map("valor_devido") @db.Decimal(10, 2)
+  valorPago    Decimal         @default(0.00) @map("valor_pago") @db.Decimal(10, 2)
+  forma        FormaPagamento
+  status       StatusPagamento @default(PENDENTE)
+  observacao   String?         @db.VarChar(300)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fechamento FechamentoCaixa @relation(fields: [fechamentoId], references: [id], onDelete: Cascade)
+  pagamento  Pagamento       @relation(fields: [pagamentoId], references: [id], onDelete: Cascade)
+
+  @@unique([fechamentoId, pagamentoId])
+  @@map("fechamento_caixa_itens")
+}
+
+// ==========================================================================
+// v4 — RELACIONAMENTO EMPRESA ↔ TRABALHADOR
+// ==========================================================================
+
+/// Favoritos da empresa (item 4).
+///
+/// Não confundir com `Vinculo.favorito`, que é o favorito **do trabalhador sobre a
+/// empresa** (existe desde a Tabela 04 do TCC). Este é o oposto e tem entidade
+/// própria porque a especificação pede lista dedicada e, no futuro, ordenação
+/// preferencial na escala.
+model TrabalhadorFavorito {
+  id        Int @id @default(autoincrement())
+  empresaId Int @map("empresa_id")
+  userId    Int @map("user_id")
+
+  observacao        String?  @db.VarChar(300)
+  criadoPorMembroId Int?     @map("criado_por_membro_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  empresa   Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  criadoPor Membro? @relation(fields: [criadoPorMembroId], references: [id], onDelete: SetNull)
+
+  @@unique([empresaId, userId])
+  @@index([empresaId])
+  @@map("trabalhador_favoritos")
+}
+
+/// Bloqueio de trabalhador por uma empresa (item 5).
+///
+/// A linha é mantida depois da remoção (`removidoEm`) para preservar o histórico —
+/// por isso não há `@@unique([empresaId, userId])`: a mesma dupla pode ter
+/// bloqueios em períodos diferentes. "Bloqueio vigente" = `removidoEm IS NULL`, e é
+/// o que os filtros de descoberta e a inscrição consultam.
+model TrabalhadorBloqueio {
+  id        Int    @id @default(autoincrement())
+  empresaId Int    @map("empresa_id")
+  userId    Int    @map("user_id")
+  motivo    String @db.VarChar(300)
+
+  aplicadoPorMembroId Int?      @map("aplicado_por_membro_id")
+  removidoPorMembroId Int?      @map("removido_por_membro_id")
+  removidoEm          DateTime? @map("removido_em")
+  motivoRemocao       String?   @map("motivo_remocao") @db.VarChar(300)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  empresa     Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  aplicadoPor Membro? @relation("BloqueioAplicadoPor", fields: [aplicadoPorMembroId], references: [id], onDelete: SetNull)
+  removidoPor Membro? @relation("BloqueioRemovidoPor", fields: [removidoPorMembroId], references: [id], onDelete: SetNull)
+
+  // Consulta de gating: bloqueio vigente de um par empresa×trabalhador.
+  @@index([empresaId, userId, removidoEm])
+  @@index([userId, removidoEm])
+  @@map("trabalhador_bloqueios")
+}
+
+// ==========================================================================
+// v4 — COMUNICAÇÃO DO EVENTO E PRESENÇA DETALHADA
+// ==========================================================================
+
+/// Solicitação do trabalhador à coordenação durante o evento (item 7).
+model SolicitacaoEvento {
+  id       Int                   @id @default(autoincrement())
+  eventoId Int                   @map("evento_id")
+  userId   Int                   @map("user_id")
+  tipo     TipoSolicitacaoEvento
+  mensagem String?               @db.VarChar(500)
+  status   StatusSolicitacao     @default(EM_ANALISE)
+
+  resposta              String?   @db.VarChar(500)
+  respondidoPorMembroId Int?      @map("respondido_por_membro_id")
+  respondidoEm          DateTime? @map("respondido_em")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  evento        Evento  @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  respondidoPor Membro? @relation(fields: [respondidoPorMembroId], references: [id], onDelete: SetNull)
+
+  // O painel do coordenador lista por evento e status; o trabalhador, por evento.
+  @@index([eventoId, status])
+  @@index([eventoId, userId])
+  @@map("solicitacoes_evento")
+}
+
+/// Mensagem da coordenação no evento (item 8). `userId` nulo = recado para toda a
+/// equipe escalada.
+model MensagemCoordenador {
+  id       Int    @id @default(autoincrement())
+  eventoId Int    @map("evento_id")
+  membroId Int    @map("membro_id")
+  userId   Int?   @map("user_id")
+  texto    String @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  evento Evento @relation(fields: [eventoId], references: [id], onDelete: Cascade)
+  membro Membro @relation(fields: [membroId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([eventoId, createdAt])
+  @@map("mensagens_coordenador")
+}
+
+/// Check-in / check-out com horário real (item 8).
+///
+/// `StatusInscricao` (PRESENTE/FALTA) continua sendo o resumo usado pela reputação
+/// e pelo score; aqui ficam os instantes, que alimentam o horário trabalhado do
+/// fechamento de caixa.
+model RegistroPresenca {
+  id          Int       @id @default(autoincrement())
+  inscricaoId Int       @unique @map("inscricao_id")
+  checkInEm   DateTime? @map("check_in_em")
+  checkOutEm  DateTime? @map("check_out_em")
+  observacao  String?   @db.VarChar(300)
+
+  registradoPorMembroId Int? @map("registrado_por_membro_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  inscricao     Inscricao @relation(fields: [inscricaoId], references: [id], onDelete: Cascade)
+  registradoPor Membro?   @relation(fields: [registradoPorMembroId], references: [id], onDelete: SetNull)
+
+  @@map("registros_presenca")
 }
