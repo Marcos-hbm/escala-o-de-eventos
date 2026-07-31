@@ -28,8 +28,8 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
   negócio continua junto do formulário.
 
 Detalhes em [`docs/ADRs 0003 e 0004`](docs/adr/). **Limitação conhecida**: em parte
-das execuções (0 a 2 em 87 testes por rodada) o cliente não aplica o resultado da
-action e a tela segue no estado anterior até uma navegação — o dado no banco está
+das execuções (0 a 1 em 87 testes por rodada, no Next 16) o cliente não aplica o
+resultado da action e a tela segue no estado anterior até uma navegação — o dado no banco está
 sempre correto. Medições, hipóteses descartadas e próximos passos no
 [ADR 0004](docs/adr/0004-atualizacao-de-tela-apos-server-action.md).
 
@@ -87,7 +87,7 @@ Detalhes de implementação em [`docs/V2_FUNCOES.md`](docs/V2_FUNCOES.md).
 
 | Camada | Tecnologia | Por quê |
 | --- | --- | --- |
-| Framework | **Next.js 15** (App Router, React 19, Server Actions) | Full-stack em um só projeto, tipos ponta a ponta |
+| Framework | **Next.js 16** (App Router, React 19, Server Actions) | Full-stack em um só projeto, tipos ponta a ponta |
 | Linguagem | **TypeScript** (strict) | Segurança de tipos front + back |
 | Banco | **PostgreSQL 16** + **Prisma 6** | Integridade referencial, enums nativos, migrations versionadas |
 | Auth | **Sessão JWT** (`jose`) + **bcryptjs** | Credenciais em tabelas separadas (trabalhador / membro da empresa), cookie httpOnly, RBAC por papel — mesmo padrão credentials+JWT do Auth.js, sob controle total |

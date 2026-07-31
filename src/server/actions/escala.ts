@@ -8,7 +8,6 @@ import { notificarEmLote } from "@/lib/notifications";
 import { escalarSchema } from "@/lib/validations";
 import { type ActionState } from "@/lib/actions";
 import { voltarComSucesso } from "@/server/actions/navegacao";
-import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 /**
  * RF10 / RF11 — Escala e finalização.
@@ -102,5 +101,5 @@ export async function reabrirEvento(formData: FormData) {
     entidadeId: eventoId,
   });
   revalidatePath(`/empresa/eventos/${eventoId}/escalar`);
-  await voltarParaOrigem(`/empresa/eventos/${eventoId}/escalar`);
+  await voltarComSucesso(`/empresa/eventos/${eventoId}/escalar`, "Evento reaberto para nova escala.");
 }

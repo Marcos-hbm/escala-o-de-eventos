@@ -10,16 +10,18 @@ import { Paginacao } from "@/components/ui/paginacao";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { Bell } from "lucide-react";
+import { Flash } from "@/components/ui/flash";
 
 export const metadata = { title: "Notificações — Escala" };
 
 export default async function Notificacoes({
   searchParams,
 }: {
-  searchParams: Promise<{ pagina?: string; tamanho?: string }>;
+  searchParams: Promise<{ pagina?: string; tamanho?: string; aviso?: string; erro_op?: string }>;
 }) {
   const s = await requireTrabalhador();
-  const { pagina, tamanho } = await searchParams;
+  const sp = await searchParams;
+  const { pagina, tamanho } = sp;
   const params = lerParametrosPagina({ pagina, tamanho });
 
   // RF15 — notificações internas. A contagem de não lidas é feita no banco (e
@@ -39,6 +41,9 @@ export default async function Notificacoes({
 
   return (
     <div>
+      <div className="mb-4">
+        <Flash searchParams={sp} caminho="/trabalhador/notificacoes" />
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Notificações</h1>

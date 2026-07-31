@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { erroDePermissao, requireEmpresa } from "@/lib/auth";
 import { registrarAuditoria } from "@/lib/audit";
-import { voltarParaOrigem } from "@/server/actions/navegacao";
+import { voltarComSucesso } from "@/server/actions/navegacao";
 
 /**
  * v2 — Controle de presença / check-in.
@@ -37,5 +37,8 @@ export async function marcarPresenca(formData: FormData) {
     entidadeId: inscricaoId,
   });
   revalidatePath(`/empresa/eventos/${insc.evento.id}/escalar`);
-  await voltarParaOrigem(`/empresa/eventos/${insc.evento.id}/escalar`);
+  await voltarComSucesso(
+    `/empresa/eventos/${insc.evento.id}/escalar`,
+    presente ? "Presença registrada." : "Falta registrada.",
+  );
 }

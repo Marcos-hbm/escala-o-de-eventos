@@ -7,16 +7,18 @@ import { SubmitButton } from "@/components/submit-button";
 import { convidarTrabalhador, responderVinculo, desvincular } from "@/server/actions/vinculos";
 import { formatCPF } from "@/lib/utils";
 import { Search } from "lucide-react";
+import { Flash } from "@/components/ui/flash";
 
 export const metadata = { title: "Vínculos — Escala" };
 
 export default async function VinculosEmpresa({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; aviso?: string; erro_op?: string }>;
 }) {
   const s = await requireEmpresa();
-  const { q } = await searchParams;
+  const sp = await searchParams;
+  const { q } = sp;
   const podeGerenciar = sessaoPode(s, "vinculo:gerenciar");
 
   const vinculos = await prisma.vinculo.findMany({
@@ -40,6 +42,7 @@ export default async function VinculosEmpresa({
 
   return (
     <div className="space-y-8">
+      <Flash searchParams={sp} caminho="/empresa/vinculos" />
       <div>
         <h1 className="text-2xl font-bold">Vínculos</h1>
         <p className="text-sm text-muted">Trabalhadores habilitados a participar dos seus eventos.</p>

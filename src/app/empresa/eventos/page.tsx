@@ -12,6 +12,7 @@ import { formatarDataCivil } from "@/lib/datetime";
 import { lerParametrosPagina, montarPagina } from "@/lib/paginacao";
 import { Paginacao } from "@/components/ui/paginacao";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Flash } from "@/components/ui/flash";
 import { Plus, Pencil, ListChecks, Trash2, Search, CalendarDays } from "lucide-react";
 import type { Prisma, StatusEvento } from "@prisma/client";
 
@@ -28,10 +29,11 @@ const statusTone: Record<StatusEvento, "success" | "info" | "neutral" | "danger"
 export default async function MeusEventos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; data?: string; pagina?: string; tamanho?: string }>;
+  searchParams: Promise<{ q?: string; data?: string; pagina?: string; tamanho?: string; aviso?: string; erro_op?: string }>;
 }) {
   const s = await requireEmpresa();
-  const { q, data, pagina, tamanho } = await searchParams;
+  const sp = await searchParams;
+  const { q, data, pagina, tamanho } = sp;
   const params = lerParametrosPagina({ pagina, tamanho });
 
   // v3 — RBAC do membro + cota de eventos ativos do plano.
@@ -55,6 +57,9 @@ export default async function MeusEventos({
 
   return (
     <div>
+      <div className="mb-4">
+        <Flash searchParams={sp} caminho="/empresa/eventos" />
+      </div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Meus eventos</h1>
         {podeCriar && !limiteAtingido && (

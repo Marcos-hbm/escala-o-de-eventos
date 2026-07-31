@@ -6,16 +6,18 @@ import { Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
 import { solicitarVinculo, responderVinculo, desvincular, alternarFavorito } from "@/server/actions/vinculos";
 import { Star, Search } from "lucide-react";
+import { Flash } from "@/components/ui/flash";
 
 export const metadata = { title: "Vínculos — Escala" };
 
 export default async function VinculosTrabalhador({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; aviso?: string; erro_op?: string }>;
 }) {
   const s = await requireTrabalhador();
-  const { q } = await searchParams;
+  const sp = await searchParams;
+  const { q } = sp;
 
   const vinculos = await prisma.vinculo.findMany({
     where: { userId: s.sub, status: { in: ["ATIVO", "PENDENTE"] } },
@@ -43,6 +45,7 @@ export default async function VinculosTrabalhador({
 
   return (
     <div className="space-y-8">
+      <Flash searchParams={sp} caminho="/trabalhador/vinculos" />
       <div>
         <h1 className="text-2xl font-bold">Vínculos</h1>
         <p className="text-sm text-muted">Conecte-se a empresas para ver e aceitar propostas de eventos.</p>

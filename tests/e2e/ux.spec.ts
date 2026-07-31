@@ -170,10 +170,10 @@ test.describe("Aviso de resultado (flash renderizado no servidor)", () => {
     await irPara(page, "/empresa/plano");
     await page.getByRole("button", { name: "Mudar para Starter" }).click();
 
-    // Recusa não escreve no banco, então não redireciona: a mensagem fica no
-    // próprio formulário (ver ADR 0004 — sucesso usa flash do servidor porque aí
-    // a tela precisa mostrar dado novo).
-    await expect(page.getByRole("alert").filter({ hasText: "acima do limite em 4 eventos ativos" })).toBeVisible();
+    // Recusa também volta como aviso renderizado no servidor (ADR 0004).
+    const flash = page.getByTestId("flash");
+    await expect(flash).toHaveAttribute("data-tipo", "erro");
+    await expect(flash).toContainText("acima do limite em 4 eventos ativos");
     await expect(page.getByTestId("plano-atual")).toHaveText("Professional");
     const ass = await prisma.assinatura.findUnique({ where: { empresaId: emp.id } });
     expect(ass?.plano).toBe("PROFESSIONAL");
