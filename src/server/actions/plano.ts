@@ -7,11 +7,15 @@ import { assinaturaDaEmpresa, usoDaEmpresa } from "@/lib/assinatura";
 import { limitesDoPlano, rotuloLimite, rotuloPlano, type RecursoContavel } from "@/lib/planos";
 import { registrarAuditoria } from "@/lib/audit";
 import { planoSchema } from "@/lib/validations";
-import { type ActionState } from "@/lib/actions";
-import { voltarComSucesso } from "@/server/actions/navegacao";
+import { voltarComErro, voltarComSucesso } from "@/server/actions/navegacao";
 
 /**
  * v3 (SaaS) — Troca de plano.
+ *
+ * Formulário simples (sem `useActionState`): tanto sucesso quanto recusa saem por
+ * redirect com a mensagem na URL. Medido: o caminho com `useActionState` deixava a
+ * tela no estado anterior em ~25% dos cliques; com formulário simples + flash,
+ * 0 em 12 (ADR 0004).
  *
  * Não há cobrança: a assinatura guarda os ganchos `provedor`/`provedorRef` para
  * quando um provedor real (Stripe/pagar.me) for integrado — aqui a troca é
@@ -27,18 +31,18 @@ const NOMES_USO: Record<RecursoContavel, string> = {
   maxVinculosAtivos: "vínculos ativos/pendentes",
 };
 
-export async function trocarPlano(_prev: ActionState, formData: FormData): Promise<ActionState> {
+export async function trocarPlano(formData: FormData): Promise<void> {
   const s = await requireEmpresa();
   const negado = erroDePermissao(s, "plano:gerenciar");
-  if (negado) return { ok: false, message: negado };
+  if (negado) return voltarComErro("/empresa/plano", negado);
 
   const parsed = planoSchema.safeParse({ plano: formData.get("plano") });
-  if (!parsed.success) return { ok: false, message: "Plano inválido." };
+  if (!parsed.success) return voltarComErro("/empresa/plano", "Plano inválido.");
   const destino = parsed.data.plano;
 
   const atual = await assinaturaDaEmpresa(s.sub);
   if (atual.plano === destino) {
-    return { ok: false, message: `A conta já está no plano ${rotuloPlano(destino)}.` };
+    return voltarComErro("/empresa/plano", `A conta já está no plano ${rotuloPlano(destino)}.`);
   }
 
   // Downgrade só passa se o uso atual couber nos limites do plano destino.
@@ -48,10 +52,10 @@ export async function trocarPlano(_prev: ActionState, formData: FormData): Promi
     .filter((r) => limites[r] !== null && uso[r] > (limites[r] as number))
     .map((r) => `${uso[r]} ${NOMES_USO[r]} (limite ${rotuloLimite(limites[r])})`);
   if (excedidos.length > 0) {
-    return {
-      ok: false,
-      message: `Não é possível migrar para ${rotuloPlano(destino)}: a conta está acima do limite em ${excedidos.join(", ")}. Reduza o uso antes de trocar.`,
-    };
+    return voltarComErro(
+      "/empresa/plano",
+      `Não é possível migrar para ${rotuloPlano(destino)}: a conta está acima do limite em ${excedidos.join(", ")}. Reduza o uso antes de trocar.`,
+    );
   }
 
   const assinatura = await prisma.assinatura.upsert({

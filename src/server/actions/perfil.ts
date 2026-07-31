@@ -123,12 +123,12 @@ export async function marcarNotificacaoLida(formData: FormData) {
   const id = Number(formData.get("id"));
   await prisma.notificacao.updateMany({ where: { id, userId: s.sub }, data: { lida: true } });
   revalidatePath("/trabalhador/notificacoes");
-  await voltarParaOrigem("/trabalhador/notificacoes");
+  await voltarComSucesso("/trabalhador/notificacoes", "Notificação marcada como lida.");
 }
 
 export async function marcarTodasLidas() {
   const s = await requireTrabalhador();
   await prisma.notificacao.updateMany({ where: { userId: s.sub, lida: false }, data: { lida: true } });
   revalidatePath("/trabalhador/notificacoes");
-  await voltarParaOrigem("/trabalhador/notificacoes");
+  await voltarComSucesso("/trabalhador/notificacoes", "Todas as notificações foram marcadas como lidas.");
 }

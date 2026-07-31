@@ -3,7 +3,7 @@
 - **Status:** aceito com limitação conhecida (ver "O que ainda falha")
 - **Data:** 2026-07-31
 - **Contexto da versão:** v4, fase 1
-- **Ambiente das medições:** Next.js 15.5.21, build de produção (`next start`), PostgreSQL 16 em Docker, Chromium
+- **Ambiente das medições:** build de produção (`next start`), PostgreSQL 16 em Docker, Chromium; Next.js 15.5.21 e, na segunda rodada de investigação, 16.2.12
 
 ## Contexto
 
@@ -37,22 +37,50 @@ mutação. Instrumentando o fluxo (rede + console + banco a cada rodada), o sint
 3. **Feedback de sucesso viaja na URL** (`lib/flash.ts` + `components/ui/flash.tsx`)
    e é renderizado **no servidor**, no mesmo render que traz os dados novos: não
    existe "dado novo sem aviso" nem "aviso sem dado novo". O fechar é um link.
-4. **Recusa por regra de negócio continua inline no formulário** (`ActionState`).
-   Testado redirecionar também nesse caso: como a recusa não escreve nada, o
-   cliente reaproveita a página do próprio cache, ignora a query nova e o aviso
-   não aparece — a URL ficava com `?erro_op=...` e a faixa não renderizava.
-   Revalidar dentro do helper antes do `redirect` piorou (a URL perdia o
-   parâmetro). Como recusa não altera dado, mensagem inline é suficiente e
-   previsível.
+4. **Recusa por regra de negócio também sai por flash** (`?erro_op=`), depois que a
+   descoberta do redirect-para-a-mesma-URL foi corrigida. No Next 15 isso não
+   funcionava — a URL ficava com o parâmetro e a faixa não renderizava, e
+   revalidar dentro do helper antes do `redirect` piorava (a URL perdia o
+   parâmetro); no Next 16, com a URL diferindo, funciona. **Erros de validação de
+   campo continuam inline** (`ActionState` + `fieldErrors`), ao lado do input:
+   navegar para dizer "e-mail inválido" perderia o que a pessoa digitou.
 5. **Toast deixa de ser canal de resultado de server action.** O componente
    permanece para confirmações puramente de cliente (ex.: "chave PIX copiada", na
    fase 3).
 
+## Investigação com Next 16 (branch `investigacao/next-upgrade`)
+
+Atualizamos 15.5.21 → **16.2.12** e repetimos as medições. O build passou sem
+mudança de código (typecheck limpo, 93/93 unitários).
+
+| Cenário (12 execuções cada, salvo indicado) | Next 15.5.21 | Next 16.2.12 |
+| --- | --- | --- |
+| Trocar plano — `useActionState` + toast | 2 a 5 de 8 com tela velha | — |
+| Trocar plano — `useActionState` + flash | — | 3 de 12 |
+| Trocar plano — formulário simples em client component + flash | — | 1 de 12 |
+| Trocar plano — formulário renderizado no servidor + flash | — | 2 de 12 |
+| Responder vínculo — formulário no servidor + flash | 1 de 8 (sem flash) | **0 de 12** |
+| Suíte E2E completa (87 testes), 3 rodadas | 2, 2, 0 falhas | **0, 1, 0 falhas** |
+
+Leituras:
+
+- o Next 16 **reduz** a incidência (de ~2 falhas por rodada para ~0,3), mas não
+  elimina;
+- dar mensagem de flash às ações `void` ajudou de verdade: sem ela o redirect ia
+  para a **mesma URL**, e navegar para a URL atual é um no-op para o router — o
+  fluxo de vínculo saiu de 1/8 para 0/12;
+- as variações de onde o formulário mora (client vs server component) e de
+  `useActionState` vs formulário simples ficaram dentro do ruído entre 1 e 3 de 12,
+  ou seja: não são a causa raiz. Mantivemos as versões mais simples (formulário no
+  servidor, sem `useActionState` onde não há erro de campo) porque são melhores por
+  outros motivos, não porque resolvem isso.
+
 ## O que ainda falha
 
-Em parte das execuções (0 a 2 em 87 testes por rodada), o cliente não aplica o
-resultado da action — inclusive quando ele é um `redirect`. Nesses casos o banco
-está correto e qualquer navegação mostra o estado atual.
+Em parte das execuções (com Next 16: 0 a 1 em 87 testes por rodada; no loop
+dirigido ao fluxo mais sensível, ~1 a 2 em 12), o cliente não aplica o resultado da
+action — inclusive quando ele é um `redirect` para URL diferente. Nesses casos o
+banco está correto e qualquer navegação mostra o estado atual.
 
 **Hipóteses testadas e descartadas por medição:**
 
@@ -71,12 +99,16 @@ está correto e qualquer navegação mostra o estado atual.
 
 **Próximos passos propostos** (nesta ordem, com medição a cada etapa):
 
-1. atualizar o Next (15.5.21 → versão atual) num branch e repetir o loop
-   instrumentado — o sintoma tem cara de comportamento do router, não de código de
-   aplicação;
-2. se persistir, `router.refresh()` explícito no cliente após a action;
-3. como último recurso, transformar as mutações em navegação de página inteira
-   (formulário sem interceptação do router).
+1. ~~atualizar o Next e repetir o loop instrumentado~~ — **feito** (tabela acima):
+   melhora, não resolve;
+2. `router.refresh()` explícito no cliente após a action (exige componente cliente
+   em volta de cada formulário — custo de arquitetura a avaliar);
+3. transformar as mutações em navegação de página inteira, sem interceptação do
+   router (`<form method="post">` para route handler), abrindo mão de action
+   tipada;
+4. reportar o comportamento ao projeto Next com o loop reprodutível — o sintoma
+   (POST 200, mutação aplicada, cliente não atualiza, sem erro) tem cara de bug do
+   router, não de código de aplicação.
 
 Enquanto isso, nenhuma decisão de produto depende do caminho quebrado: o dado é
 sempre gravado, e as telas críticas (excluir evento, vínculos, presença,
