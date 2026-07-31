@@ -4,6 +4,9 @@ import {
   cadastroEmpresaSchema,
   eventoSchema,
   loginSchema,
+  registrarPagamentoSchema,
+  itemFechamentoSchema,
+  contestacaoSchema,
 } from "@/lib/validations";
 
 describe("cadastroTrabalhadorSchema", () => {
@@ -103,5 +106,51 @@ describe("loginSchema", () => {
   it("exige tipo válido", () => {
     expect(loginSchema.safeParse({ tipo: "TRABALHADOR", email: "a@a.com", senha: "x" }).success).toBe(true);
     expect(loginSchema.safeParse({ tipo: "ADMIN", email: "a@a.com", senha: "x" }).success).toBe(false);
+  });
+});
+
+/**
+ * v4 — dinheiro digitado por humano e campos opcionais ausentes.
+ *
+ * `formData.get()` devolve null para campo que não existe no formulário; um
+ * `.optional()` cru rejeitaria isso com "Invalid input" e a operação seria recusada
+ * sem explicação. Este bloco existe porque foi exatamente o que aconteceu.
+ */
+describe("registrarPagamentoSchema (v4)", () => {
+  it("aceita valor em padrão brasileiro e inglês", () => {
+    expect(registrarPagamentoSchema.parse({ pagamentoId: 1, valor: "1.234,50", forma: "PIX" }).valor).toBe(1234.5);
+    expect(registrarPagamentoSchema.parse({ pagamentoId: 1, valor: "1234.50", forma: "PIX" }).valor).toBe(1234.5);
+    expect(registrarPagamentoSchema.parse({ pagamentoId: 1, valor: "R$ 200", forma: "PIX" }).valor).toBe(200);
+  });
+
+  it("aceita observação ausente (null vindo do FormData)", () => {
+    const r = registrarPagamentoSchema.safeParse({ pagamentoId: 1, valor: "200", forma: "PIX", observacao: null });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.observacao).toBeUndefined();
+  });
+
+  it("recusa valor zero, negativo e forma inválida", () => {
+    expect(registrarPagamentoSchema.safeParse({ pagamentoId: 1, valor: "0", forma: "PIX" }).success).toBe(false);
+    expect(registrarPagamentoSchema.safeParse({ pagamentoId: 1, valor: "-5", forma: "PIX" }).success).toBe(false);
+    expect(registrarPagamentoSchema.safeParse({ pagamentoId: 1, valor: "10", forma: "BOLETO" }).success).toBe(false);
+  });
+});
+
+describe("itemFechamentoSchema (v4)", () => {
+  it("aceita zero — no fechamento significa 'não pago'", () => {
+    expect(itemFechamentoSchema.parse({ pagamentoId: 1, valorPago: "0", forma: "DINHEIRO" }).valorPago).toBe(0);
+  });
+});
+
+describe("contestacaoSchema (v4)", () => {
+  it("exige descrição com contexto suficiente", () => {
+    const curta = contestacaoSchema.safeParse({ pagamentoId: 1, motivo: "Valor", descricao: "menos" });
+    expect(curta.success).toBe(false);
+    const ok = contestacaoSchema.safeParse({
+      pagamentoId: 1,
+      motivo: "Valor menor",
+      descricao: "Recebi metade do combinado e não houve aviso sobre o restante.",
+    });
+    expect(ok.success).toBe(true);
   });
 });

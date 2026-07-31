@@ -144,6 +144,89 @@ export const eventoSchema = z.object({
 export type EventoInput = z.infer<typeof eventoSchema>;
 
 // --------------------------------------------------------------------------
+// Financeiro (v4)
+// --------------------------------------------------------------------------
+
+const formaPagamentoSchema = z.enum(["PIX", "DINHEIRO", "CARTAO_CREDITO"]);
+
+/** Dinheiro digitado por humano: aceita "1.234,50" e "1234.50". */
+const valorMonetario = z
+  .string()
+  .trim()
+  .min(1, "Informe o valor")
+  .transform((v) => {
+    const limpo = v.replace(/[^\d,.-]/g, "");
+    // Se tem vírgula, ela é o separador decimal (padrão BR) e o ponto é milhar.
+    const normalizado = limpo.includes(",") ? limpo.replace(/\./g, "").replace(",", ".") : limpo;
+    return Number(normalizado);
+  })
+  .refine((n) => Number.isFinite(n), "Valor inválido")
+  .refine((n) => n >= 0, "Valor não pode ser negativo")
+  .refine((n) => n <= 1_000_000, "Valor acima do limite");
+
+/**
+ * Texto opcional vindo de `FormData`.
+ *
+ * `formData.get("campo")` devolve **null** quando o campo não existe no formulário
+ * (não `undefined` nem `""`), e um `.optional()` cru rejeita null com "Invalid
+ * input" — erro que aparece como recusa da operação sem explicar nada. O
+ * `preprocess` normaliza null/"" para undefined antes de validar.
+ */
+const textoOpcional = (max: number, mensagem?: string) =>
+  z.preprocess(
+    (v) => (v === null || v === undefined || v === "" ? undefined : v),
+    z.string().trim().max(max, mensagem).optional(),
+  );
+
+const horaOpcional = textoOpcional(5, "Use o formato HH:MM");
+
+export const valorPagamentoSchema = z.object({
+  pagamentoId: z.coerce.number().int().positive(),
+  valorDevido: valorMonetario,
+  funcao: textoOpcional(120),
+  horaEntrada: horaOpcional,
+  horaSaida: horaOpcional,
+  observacoes: textoOpcional(500),
+});
+
+export const registrarPagamentoSchema = z.object({
+  pagamentoId: z.coerce.number().int().positive(),
+  valor: valorMonetario.refine((n) => n > 0, "Informe um valor maior que zero"),
+  forma: formaPagamentoSchema,
+  observacao: textoOpcional(300),
+});
+
+export const itemFechamentoSchema = z.object({
+  pagamentoId: z.coerce.number().int().positive(),
+  // No fechamento, zero é resposta válida: significa "não pago".
+  valorPago: valorMonetario,
+  forma: formaPagamentoSchema,
+  observacao: textoOpcional(300),
+});
+
+export const contestacaoSchema = z.object({
+  pagamentoId: z.coerce.number().int().positive(),
+  motivo: z.string().trim().min(3, "Descreva o motivo em poucas palavras").max(120),
+  descricao: z
+    .string()
+    .trim()
+    .min(20, "Explique o problema com pelo menos 20 caracteres para a empresa entender")
+    .max(1000),
+});
+
+export const respostaContestacaoSchema = z.object({
+  contestacaoId: z.coerce.number().int().positive(),
+  resposta: z.string().trim().min(10, "Escreva a resposta ao trabalhador").max(1000),
+  status: z.enum(["EM_ANALISE", "RESOLVIDA", "REJEITADA"]),
+});
+
+/** Chave PIX do trabalhador (o valor é validado por tipo em `lib/pix.ts`). */
+export const chavePixSchema = z.object({
+  tipo: z.enum(["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"]),
+  chave: z.string().trim().min(1, "Informe a chave PIX").max(140),
+});
+
+// --------------------------------------------------------------------------
 // Escalação (RF10)
 // --------------------------------------------------------------------------
 

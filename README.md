@@ -10,6 +10,27 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
 
 ---
 
+## Novidades (v4, fase 3) — o fluxo de dinheiro, ponta a ponta
+
+- **Finalizar pagamentos** (`/empresa/eventos/[id]/pagamentos`): uma linha por
+  trabalhador escalado com foto, função, horário trabalhado, valor combinado, o que
+  já foi pago, situação, forma de pagamento, chave PIX e observações. As linhas são
+  criadas automaticamente a partir do cachê do evento.
+- **Pagamento total e parcial**, com estorno que **preserva o histórico** de
+  lançamentos, troca de forma e ajuste do combinado. Toda alteração vira registro de
+  auditoria com o membro responsável.
+- **Fechamento de caixa** iniciado pelo coordenador: notifica todos os escalados,
+  registra a decisão por trabalhador (pago, parcial ou não pago) e só conclui quando
+  todos foram conferidos.
+- **Contestação de pagamento** pelo trabalhador, com notificação aos responsáveis do
+  financeiro e resposta da empresa (resolvida / em análise / rejeitada).
+- **Históricos financeiros**: da empresa (busca + filtro por situação) e do
+  trabalhador (com indicador ✅ Pago / ⏳ pendente também no histórico de eventos).
+- **Chave PIX**: o trabalhador cadastra no perfil (guardada cifrada, exibida
+  mascarada); a empresa vê completa e copia, e **cada visualização é auditada**.
+
+---
+
 ## Novidades (v4, fase 2) — modelagem financeira, PIX cifrado e RBAC financeiro
 
 - **Financeiro modelado em três níveis**: `pagamentos` (o saldo devido por
@@ -192,19 +213,19 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 157 testes: 139 unitários + 18 de integração (PostgreSQL)
+npm test                      # 162 testes: 144 unitários + 18 de integração (PostgreSQL)
 npx vitest run tests/unit     # só os unitários (sem banco)
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 
-# Suíte E2E completa (87 testes) — precisa da app + PostgreSQL.
+# Suíte E2E completa (100 testes) — precisa da app + PostgreSQL.
 # Mais estável contra o build de produção:
 npm run db:up                 # ou docker compose up -d
 npm run build && npm start &  # servidor de produção em :3000
 E2E_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
-A matriz completa de casos (CT-01…CT-87) está em
+A matriz completa de casos (CT-01…CT-116) está em
 [`docs/CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md). Os testes E2E criam dados
 isolados por teste (CPF/CNPJ válidos gerados), então rodam em paralelo e
 repetidamente sem interferência. Cobrem: cadastro/login (positivos e negativos),

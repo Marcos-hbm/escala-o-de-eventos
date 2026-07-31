@@ -104,6 +104,10 @@ Empresa (tenant)
   `Membro.autorizadoFinanceiro`; Visualizador nunca.
 - **Notificações** passam a ter destinatário polimórfico (trabalhador **ou** membro),
   sem o que "o coordenador recebe em tempo real" não teria onde chegar.
+- **Formulários financeiros são renderizados no servidor** e o resultado (sucesso ou
+  recusa, inclusive erro de validação) volta como aviso na URL. Isso não é
+  preferência de estilo: com `useActionState` em client component a tela ficava no
+  estado anterior em parte dos cliques — inaceitável em dinheiro (ADR 0004).
 
 ## Apresentação (v4 fase 1)
 

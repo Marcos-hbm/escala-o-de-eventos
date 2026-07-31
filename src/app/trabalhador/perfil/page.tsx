@@ -5,6 +5,8 @@ import { LgpdPanel } from "@/components/lgpd-panel";
 import { Card } from "@/components/ui/card";
 import { Estrelas } from "@/components/ui/stat";
 import { PerfilTrabalhadorForm } from "./form";
+import { ChavePixForm } from "./pix-form";
+import { chavePixMascarada } from "@/lib/pix-leitura";
 import { notFound } from "next/navigation";
 import { Flash } from "@/components/ui/flash";
 
@@ -27,6 +29,8 @@ export default async function PerfilTrabalhador({
   if (!user) notFound();
 
   const rep = (await reputacoesDeTrabalhadores([s.sub])).get(s.sub) ?? { media: null, qtd: 0 };
+  // A chave vem já mascarada do servidor: a tela nunca recebe o valor completo.
+  const pix = await chavePixMascarada(s.sub);
 
   return (
     <div className="space-y-6">
@@ -38,6 +42,7 @@ export default async function PerfilTrabalhador({
           <Estrelas media={rep.media} qtd={rep.qtd} />
         </Card>
       </div>
+      <ChavePixForm tipoAtual={pix?.tipo ?? null} mascaraAtual={pix?.mascara ?? null} />
       <PerfilTrabalhadorForm user={user} />
       <LgpdPanel />
     </div>

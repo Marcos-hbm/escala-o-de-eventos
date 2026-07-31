@@ -17,3 +17,13 @@ export function zodToFieldErrors(
   }
   return out;
 }
+
+/**
+ * Primeira mensagem de erro de um `ZodError`, para telas cujo resultado volta por
+ * aviso na URL (não há campo para pendurar o erro). Ver ADR 0004.
+ */
+export function primeiroErroZod(erro: { issues: { message: string; path: (string | number)[] }[] }): string {
+  const issue = erro.issues[0];
+  if (!issue) return "Dados inválidos.";
+  return issue.path.length > 0 ? `${issue.message} (campo: ${issue.path.join(".")})` : issue.message;
+}

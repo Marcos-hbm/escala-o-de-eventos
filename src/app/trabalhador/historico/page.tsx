@@ -4,6 +4,8 @@ import { Card, Badge } from "@/components/ui/card";
 import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
 import { Flash } from "@/components/ui/flash";
+import Link from "next/link";
+import { INDICADOR_STATUS } from "@/lib/domain/pagamento";
 import { AvaliarEmpresa } from "./avaliar-empresa";
 
 export const metadata = { title: "Histórico — Escala" };
@@ -41,6 +43,13 @@ export default async function Historico({
   });
   const notaPorEvento = new Map(minhasAvaliacoes.map((a) => [a.eventoId, a.nota]));
 
+  // v4 item 6: o card do evento mostra ✅ Pago / ⏳ Pagamento pendente.
+  const pagamentos = await prisma.pagamento.findMany({
+    where: { userId: s.sub },
+    select: { eventoId: true, status: true, valorDevido: true, valorPago: true },
+  });
+  const pagamentoPorEvento = new Map(pagamentos.map((p) => [p.eventoId, p]));
+
   return (
     <div>
       <Flash searchParams={sp} caminho="/trabalhador/historico" />
@@ -54,6 +63,7 @@ export default async function Historico({
           {inscricoes.map((i) => {
             const r = rotulo[i.status] ?? { texto: i.status, tone: "neutral" as const };
             const podeAvaliar = i.evento.status === "FINALIZADO" && PARTICIPOU.includes(i.status);
+            const pagamento = pagamentoPorEvento.get(i.evento.id);
             return (
               <Card key={i.id}>
                 <div className="flex items-center justify-between">
@@ -63,7 +73,21 @@ export default async function Historico({
                       {i.evento.empresa.nome} · {formatarDataCivil(i.evento.dataEvento)} · {formatBRL(Number(i.evento.valorCache))}
                     </p>
                   </div>
-                  <Badge tone={r.tone}>{r.texto}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <Badge tone={r.tone}>{r.texto}</Badge>
+                    {pagamento && (
+                      <Link
+                        href="/trabalhador/financeiro"
+                        data-testid="indicador-pagamento-historico"
+                        className="text-xs hover:underline"
+                        title="Ver meus pagamentos"
+                      >
+                        <Badge tone={pagamento.status === "PAGO" ? "success" : pagamento.status === "PARCIAL" ? "warning" : "neutral"}>
+                          {INDICADOR_STATUS[pagamento.status]}
+                        </Badge>
+                      </Link>
+                    )}
+                  </div>
                 </div>
                 {podeAvaliar && (
                   <AvaliarEmpresa eventoId={i.evento.id} notaAtual={notaPorEvento.get(i.evento.id) ?? null} />

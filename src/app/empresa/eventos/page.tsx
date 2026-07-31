@@ -13,7 +13,7 @@ import { lerParametrosPagina, montarPagina } from "@/lib/paginacao";
 import { Paginacao } from "@/components/ui/paginacao";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Flash } from "@/components/ui/flash";
-import { Plus, Pencil, ListChecks, Trash2, Search, CalendarDays } from "lucide-react";
+import { Plus, Pencil, ListChecks, Trash2, Search, CalendarDays, Wallet } from "lucide-react";
 import type { Prisma, StatusEvento } from "@prisma/client";
 
 export const metadata = { title: "Meus eventos — Escala" };
@@ -40,6 +40,7 @@ export default async function MeusEventos({
   const podeCriar = sessaoPode(s, "evento:criar");
   const podeEditar = sessaoPode(s, "evento:editar");
   const podeExcluir = sessaoPode(s, "evento:excluir");
+  const podeFinanceiro = sessaoPode(s, "financeiro:ver");
   const limiteAtingido = podeCriar ? await erroDeLimite(s.sub, "maxEventosAtivos") : null;
 
   const filtrado = Boolean(q || data);
@@ -52,6 +53,7 @@ export default async function MeusEventos({
     podeEditar,
     podeExcluir,
     podeCriar,
+    podeFinanceiro,
     limiteAtingido,
   });
 
@@ -114,6 +116,7 @@ async function listaDeEventos({
   podeEditar,
   podeExcluir,
   podeCriar,
+  podeFinanceiro,
   limiteAtingido,
 }: {
   empresaId: number;
@@ -124,6 +127,7 @@ async function listaDeEventos({
   podeEditar: boolean;
   podeExcluir: boolean;
   podeCriar: boolean;
+  podeFinanceiro: boolean;
   limiteAtingido: string | null;
 }) {
   const where: Prisma.EventoWhereInput = { empresaId };
@@ -180,6 +184,12 @@ async function listaDeEventos({
                 <Link href={`/empresa/eventos/${e.id}/escalar`}>
                   <Button size="sm" variant="outline"><ListChecks className="h-4 w-4" /> Escalar</Button>
                 </Link>
+                {/* v4 item 2: o fluxo pós-evento começa aqui. */}
+                {podeFinanceiro && e.status === "FINALIZADO" && (
+                  <Link href={`/empresa/eventos/${e.id}/pagamentos`}>
+                    <Button size="sm"><Wallet className="h-4 w-4" /> Finalizar pagamentos</Button>
+                  </Link>
+                )}
                 {podeEditar && e.status !== "FINALIZADO" && (
                   <Link href={`/empresa/eventos/${e.id}/editar`}>
                     <Button size="sm" variant="ghost"><Pencil className="h-4 w-4" /> Editar</Button>

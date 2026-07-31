@@ -9,9 +9,12 @@ import { registrarAuditoria } from "@/lib/audit";
 import { salvarFotoPerfil } from "@/lib/upload";
 import { anonimizarTrabalhador, anonimizarEmpresa } from "@/lib/lgpd";
 import { pode } from "@/lib/rbac";
-import { perfilTrabalhadorSchema, perfilEmpresaSchema } from "@/lib/validations";
+import { chavePixSchema, perfilTrabalhadorSchema, perfilEmpresaSchema } from "@/lib/validations";
+import { primeiroErroZod } from "@/lib/actions";
+import { cifrar, criptoConfigurada } from "@/lib/cripto";
+import { normalizarChavePix } from "@/lib/pix";
 import { type ActionState, zodToFieldErrors } from "@/lib/actions";
-import { voltarComSucesso, voltarParaOrigem } from "@/server/actions/navegacao";
+import { voltarComErro, voltarComSucesso, voltarParaOrigem } from "@/server/actions/navegacao";
 
 // --------------------------------------------------------------------------
 // RF04 — Editar perfil do trabalhador (inclui foto)
@@ -131,4 +134,73 @@ export async function marcarTodasLidas() {
   await prisma.notificacao.updateMany({ where: { userId: s.sub, lida: false }, data: { lida: true } });
   revalidatePath("/trabalhador/notificacoes");
   await voltarComSucesso("/trabalhador/notificacoes", "Todas as notificações foram marcadas como lidas.");
+}
+
+// --------------------------------------------------------------------------
+// v4 — Chave PIX do trabalhador (item 2)
+// --------------------------------------------------------------------------
+/**
+ * Cadastra/atualiza a chave PIX, gravando **cifrada** (ADR 0005).
+ *
+ * A validação por tipo fica em `lib/pix.ts` (pura, testada): a chave é normalizada
+ * antes de cifrar, para a empresa copiar exatamente o que o banco aceita.
+ */
+export async function salvarChavePix(formData: FormData): Promise<void> {
+  const s = await requireTrabalhador();
+
+  const parsed = chavePixSchema.safeParse({ tipo: formData.get("tipo"), chave: formData.get("chave") });
+  if (!parsed.success) {
+    return voltarComErro("/trabalhador/perfil", primeiroErroZod(parsed.error));
+  }
+
+  if (!criptoConfigurada()) {
+    return voltarComErro(
+      "/trabalhador/perfil",
+      "O servidor está sem a chave de cifragem (PIX_ENCRYPTION_KEY). Sua chave PIX não foi salva — avise o suporte.",
+    );
+  }
+
+  const normalizada = normalizarChavePix(parsed.data.tipo, parsed.data.chave);
+  if (!normalizada.ok) {
+    return voltarComErro("/trabalhador/perfil", normalizada.erro ?? "Chave PIX inválida.");
+  }
+
+  await prisma.user.update({
+    where: { id: s.sub },
+    data: {
+      pixTipo: parsed.data.tipo,
+      pixChaveCifrada: cifrar(normalizada.valor!),
+      pixAtualizadoEm: new Date(),
+    },
+  });
+
+  // Auditoria registra a ALTERAÇÃO (sem o valor, que é o dado sensível).
+  await registrarAuditoria({
+    atorTipo: "TRABALHADOR",
+    atorId: s.sub,
+    acao: "PIX_CADASTRADO",
+    entidade: "User",
+    entidadeId: s.sub,
+    detalhe: `tipo ${parsed.data.tipo}`,
+  });
+
+  return voltarComSucesso("/trabalhador/perfil", "Chave PIX salva com segurança (guardada cifrada).");
+}
+
+/** Remove a chave PIX cadastrada (direito de não manter o dado). */
+export async function removerChavePix(): Promise<void> {
+  const s = await requireTrabalhador();
+  await prisma.user.update({
+    where: { id: s.sub },
+    data: { pixTipo: null, pixChaveCifrada: null, pixAtualizadoEm: null },
+  });
+  await registrarAuditoria({
+    atorTipo: "TRABALHADOR",
+    atorId: s.sub,
+    acao: "PIX_REMOVIDO",
+    entidade: "User",
+    entidadeId: s.sub,
+  });
+  revalidatePath("/trabalhador/perfil");
+  await voltarComSucesso("/trabalhador/perfil", "Chave PIX removida.");
 }

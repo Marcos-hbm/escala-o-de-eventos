@@ -1,5 +1,14 @@
 import { AlertTriangle } from "lucide-react";
-import { mensagemPermissao, ORDEM_PAPEIS, pode, rotuloPapel, type PapelId, type Permissao } from "@/lib/rbac";
+import {
+  ehPermissaoFinanceira,
+  mensagemFinanceiro,
+  mensagemPermissao,
+  ORDEM_PAPEIS,
+  pode,
+  rotuloPapel,
+  type PapelId,
+  type Permissao,
+} from "@/lib/rbac";
 
 const PERMISSOES_CONHECIDAS: Permissao[] = [
   "evento:criar",
@@ -13,6 +22,12 @@ const PERMISSOES_CONHECIDAS: Permissao[] = [
   "equipe:gerenciar",
   "plano:gerenciar",
   "conta:excluir",
+  // v4
+  "financeiro:gerenciar",
+  "financeiro:ver",
+  "pix:ver",
+  "relacionamento:gerenciar",
+  "comunicacao:responder",
 ];
 
 /**
@@ -23,7 +38,11 @@ export function AvisoNegado({ negado, papel }: { negado?: string; papel: PapelId
   if (!negado) return null;
   const permissao = PERMISSOES_CONHECIDAS.find((p) => p === negado);
   const texto = permissao
-    ? mensagemPermissao(papel, permissao)
+    ? // Financeiro tem mensagem própria: depende de autorização por membro, não só
+      // do papel, e a orientação de como liberar é diferente (ADR 0005).
+      ehPermissaoFinanceira(permissao)
+      ? mensagemFinanceiro(papel)
+      : mensagemPermissao(papel, permissao)
     : `Seu papel (${rotuloPapel(papel)}) não permite acessar esta área.`;
   // Sanidade: se o papel de fato pode, não há o que avisar (link antigo).
   if (permissao && pode(papel, permissao) && ORDEM_PAPEIS.includes(papel)) return null;

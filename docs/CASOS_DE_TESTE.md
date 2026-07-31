@@ -174,6 +174,25 @@ a aplicação em execução + PostgreSQL.
 | CT-101 | Trabalhador vê a própria chave mascarada, sem auditoria | Integração | pix-leitura.test |
 | CT-102 | Coluna do banco guarda pacote cifrado versionado, não a chave em claro | Integração | pix-leitura.test |
 
+## v4 fase 3 — Financeiro (telas e fluxos)
+
+| CT | Descrição | Tipo | Arquivo |
+| --- | --- | --- | --- |
+| CT-103 | "Finalizar pagamentos" no card do evento finalizado; linha criada com o cachê | E2E | financeiro.spec |
+| CT-104 | Pagamento total: status ✅, lançamento, notificação e auditoria | E2E | financeiro.spec |
+| CT-105 | Pagamento parcial acumula e recusa valor acima do saldo (diz quanto resta) | E2E | financeiro.spec |
+| CT-106 | Estorno volta a pendente **preservando** o histórico de lançamentos | E2E | financeiro.spec |
+| CT-107 | PIX: trabalhador cadastra (cifrado) e vê mascarado; empresa vê completo com auditoria | E2E | financeiro.spec |
+| CT-108 | Fechamento: iniciar notifica escalados, conferir registra, concluir fecha | E2E | financeiro.spec |
+| CT-109 | Contestação: trabalhador abre, responsáveis do financeiro são notificados, empresa responde | E2E | financeiro.spec |
+| CT-110 | Segunda contestação em aberto é bloqueada no mesmo pagamento | E2E | financeiro.spec |
+| CT-111 | Coordenador sem autorização não vê Financeiro nem a tela de pagamentos | E2E | financeiro.spec |
+| CT-112 | Coordenador autorizado registra pagamento (lançamento atribuído a ele) | E2E | financeiro.spec |
+| CT-113 | Visualizador não acessa o financeiro nem com a flag ligada | E2E | financeiro.spec |
+| CT-114 | Histórico da empresa filtra por situação e busca por nome | E2E | financeiro.spec |
+| CT-115 | Indicador ✅/⏳ no histórico de participações do trabalhador | E2E | financeiro.spec |
+| CT-116 | Valor monetário aceita "1.234,50" e "1234.50"; campo opcional ausente (null) | Unitário | validations.test |
+
 ---
 
 ## Como executar
