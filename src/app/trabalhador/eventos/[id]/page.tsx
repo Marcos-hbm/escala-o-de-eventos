@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireTrabalhador } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { estaBloqueado } from "@/lib/bloqueio";
 import { Card, Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
@@ -23,6 +24,9 @@ export default async function DetalheEvento({ params }: { params: Promise<{ id: 
     },
   });
   if (!evento) notFound();
+
+  // v4 item 5: bloqueado por esta empresa não acessa o evento nem por URL direta.
+  if (await estaBloqueado(s.sub, evento.empresa.id)) notFound();
 
   // RF13 — precisa de vínculo ativo com a organizadora.
   const vinculado = await prisma.vinculo.findFirst({

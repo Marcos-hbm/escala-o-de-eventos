@@ -220,6 +220,43 @@ export const respostaContestacaoSchema = z.object({
   status: z.enum(["EM_ANALISE", "RESOLVIDA", "REJEITADA"]),
 });
 
+/** Avaliação por critérios (v4 item 3). Cada critério é opcional; ao menos um é exigido pelo domínio. */
+const notaCriterio = z.preprocess(
+  (v) => (v === null || v === undefined || v === "" ? undefined : v),
+  z.coerce.number().int().min(1, "Nota de 1 a 5").max(5, "Nota de 1 a 5").optional(),
+);
+
+export const avaliacaoCriteriosSchema = z.object({
+  eventoId: z.coerce.number().int().positive(),
+  userId: z.coerce.number().int().positive(),
+  pontualidade: notaCriterio,
+  comunicacao: notaCriterio,
+  trabalhoEquipe: notaCriterio,
+  qualidade: notaCriterio,
+  comprometimento: notaCriterio,
+  comentario: textoOpcional(500),
+});
+
+/** Bloqueio de trabalhador (v4 item 5): o motivo é obrigatório e fica registrado. */
+export const bloqueioSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+  motivo: z
+    .string()
+    .trim()
+    .min(10, "Descreva o motivo com pelo menos 10 caracteres — ele fica registrado e pode ser revisto")
+    .max(300),
+});
+
+export const desbloqueioSchema = z.object({
+  bloqueioId: z.coerce.number().int().positive(),
+  motivoRemocao: textoOpcional(300),
+});
+
+export const favoritoSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+  observacao: textoOpcional(300),
+});
+
 /** Chave PIX do trabalhador (o valor é validado por tipo em `lib/pix.ts`). */
 export const chavePixSchema = z.object({
   tipo: z.enum(["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"]),

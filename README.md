@@ -10,6 +10,25 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
 
 ---
 
+## Novidades (v4, fase 4) — avaliação por critérios, favoritos e bloqueio
+
+- **Avaliação em cinco critérios** (pontualidade, comunicação, trabalho em equipe,
+  qualidade, comprometimento) com comentário. A **nota geral passa a ser a média**
+  dos critérios, o que preserva reputação, score da escalação inteligente e as
+  avaliações anteriores à v4. A tela mostra a prévia da média antes de salvar e o
+  trabalhador é notificado.
+- **Favoritos**: lista própria em `/empresa/relacionamento`, com destaque e ponto a
+  melhorar calculados a partir dos critérios. O mesmo controle favorita e
+  desfavorita, e ele também está na tela de pagamentos.
+- **Bloqueio com efeito real**, não só visual: o trabalhador bloqueado deixa de ver
+  as vagas daquela empresa, recebe 404 no evento por URL, **não consegue se
+  candidatar nem chamando a action diretamente**, e sai da busca de candidatos.
+  Bloquear exige motivo, desfaz o vínculo, cancela inscrições futuras e remove o
+  favorito. Só Administrador/Proprietário remove o bloqueio — e a linha antiga
+  permanece como histórico.
+
+---
+
 ## Novidades (v4, fase 3) — o fluxo de dinheiro, ponta a ponta
 
 - **Finalizar pagamentos** (`/empresa/eventos/[id]/pagamentos`): uma linha por
@@ -213,19 +232,19 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 162 testes: 144 unitários + 18 de integração (PostgreSQL)
+npm test                      # 176 testes: 158 unitários + 18 de integração (PostgreSQL)
 npx vitest run tests/unit     # só os unitários (sem banco)
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 
-# Suíte E2E completa (100 testes) — precisa da app + PostgreSQL.
+# Suíte E2E completa (110 testes) — precisa da app + PostgreSQL.
 # Mais estável contra o build de produção:
 npm run db:up                 # ou docker compose up -d
 npm run build && npm start &  # servidor de produção em :3000
 E2E_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
-A matriz completa de casos (CT-01…CT-116) está em
+A matriz completa de casos (CT-01…CT-129) está em
 [`docs/CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md). Os testes E2E criam dados
 isolados por teste (CPF/CNPJ válidos gerados), então rodam em paralelo e
 repetidamente sem interferência. Cobrem: cadastro/login (positivos e negativos),

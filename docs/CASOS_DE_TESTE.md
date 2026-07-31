@@ -193,6 +193,24 @@ a aplicação em execução + PostgreSQL.
 | CT-115 | Indicador ✅/⏳ no histórico de participações do trabalhador | E2E | financeiro.spec |
 | CT-116 | Valor monetário aceita "1.234,50" e "1234.50"; campo opcional ausente (null) | Unitário | validations.test |
 
+## v4 fase 4 — Avaliação por critérios, favoritos e bloqueio
+
+| CT | Descrição | Tipo | Arquivo |
+| --- | --- | --- | --- |
+| CT-117 | Critérios: nota geral é a média arredondada; ignora não preenchidos (14 asserts) | Unitário | avaliacao.test |
+| CT-118 | Validação aponta o critério inválido pelo nome; exige ao menos um | Unitário | avaliacao.test |
+| CT-119 | Resumo por critério e destaque/ponto a melhorar (sem ruído quando empata) | Unitário | avaliacao.test |
+| CT-120 | Empresa avalia por critérios: prévia da média, nota geral no banco e notificação | E2E | v2.spec |
+| CT-121 | Favoritar na tela de pagamentos e ver na lista própria | E2E | relacionamento.spec |
+| CT-122 | O mesmo controle desfavorita (alterna) | E2E | relacionamento.spec |
+| CT-123 | Bloquear exige motivo, desfaz vínculo, cancela inscrição futura e remove favorito | E2E | relacionamento.spec |
+| CT-124 | Bloqueado não vê vagas da empresa e recebe 404 no evento por URL | E2E | relacionamento.spec |
+| CT-125 | Bloqueado não consegue se candidatar nem por requisição direta à action | E2E | relacionamento.spec |
+| CT-126 | Bloqueado não aparece na busca de trabalhadores para convidar | E2E | relacionamento.spec |
+| CT-127 | Coordenador não remove bloqueio; Proprietário remove e o histórico permanece | E2E | relacionamento.spec |
+| CT-128 | Depois de desbloqueado, o trabalhador volta a ver as vagas | E2E | relacionamento.spec |
+| CT-129 | Favorito exibe destaque e ponto a melhorar a partir dos critérios | E2E | relacionamento.spec |
+
 ---
 
 ## Como executar

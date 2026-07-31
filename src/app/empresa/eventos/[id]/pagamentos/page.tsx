@@ -34,6 +34,8 @@ import {
   ResponderContestacaoForm,
 } from "./pagamento-forms";
 import { CopiarPix } from "./copiar-pix";
+import { BloquearForm } from "@/app/empresa/relacionamento/bloquear-form";
+import { favoritarTrabalhador } from "@/server/actions/relacionamento";
 import { KeyRound, Users, Wallet, CircleAlert, Star, ListChecks } from "lucide-react";
 
 export const metadata = { title: "Pagamentos do evento — Escala" };
@@ -117,6 +119,14 @@ export default async function PagamentosDoEvento({
   });
   const presencaPorUser = new Map(presencas.map((p) => [p.inscricao.userId, p]));
 
+  // v4 item 4/5: favoritar e bloquear direto na tela de pagamentos.
+  const [favoritos, bloqueios] = await Promise.all([
+    prisma.trabalhadorFavorito.findMany({ where: { empresaId: s.sub }, select: { userId: true } }),
+    prisma.trabalhadorBloqueio.findMany({ where: { empresaId: s.sub, removidoEm: null }, select: { userId: true } }),
+  ]);
+  const ehFavorito = new Set(favoritos.map((f) => f.userId));
+  const ehBloqueado = new Set(bloqueios.map((b) => b.userId));
+
   const resumo = resumirPagamentos(
     pagamentos.map((p) => ({
       valorDevido: Number(p.valorDevido),
@@ -126,6 +136,7 @@ export default async function PagamentosDoEvento({
   );
 
   const podeGerenciar = sessaoPode(s, "financeiro:gerenciar");
+  const podeRelacionamento = sessaoPode(s, "relacionamento:gerenciar");
   const podeVerPix = sessaoPode(s, "pix:ver");
   const fechamentoAberto = fechamento?.status === "EM_ANDAMENTO";
   const conferidos = new Set(fechamento?.itens.map((i) => i.pagamentoId) ?? []);
@@ -380,6 +391,31 @@ export default async function PagamentosDoEvento({
                         <Star className="h-4 w-4" /> Avaliar na escala
                       </Link>
                     </div>
+                  </div>
+                )}
+
+                {/* Relacionamento (itens 4 e 5) — a especificação pede estes controles nesta tela */}
+                {podeRelacionamento && (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-surface pt-3">
+                    <form action={favoritarTrabalhador}>
+                      <input type="hidden" name="userId" value={p.user.id} />
+                      <SubmitButton
+                        size="sm"
+                        variant={ehFavorito.has(p.user.id) ? "secondary" : "outline"}
+                        pendingLabel="..."
+                        aria-label={`${ehFavorito.has(p.user.id) ? "Remover" : "Adicionar"} ${p.user.nome} ${ehFavorito.has(p.user.id) ? "dos" : "aos"} favoritos`}
+                      >
+                        <Star className="h-4 w-4" /> {ehFavorito.has(p.user.id) ? "Favorito" : "Favoritar"}
+                      </SubmitButton>
+                    </form>
+                    {ehBloqueado.has(p.user.id) ? (
+                      <Badge tone="danger">Trabalhador bloqueado</Badge>
+                    ) : (
+                      <BloquearForm userId={p.user.id} nome={p.user.nome} />
+                    )}
+                    <Link href="/empresa/relacionamento" className="text-xs text-brand-600 hover:underline">
+                      Ver favoritos e bloqueios →
+                    </Link>
                   </div>
                 )}
 

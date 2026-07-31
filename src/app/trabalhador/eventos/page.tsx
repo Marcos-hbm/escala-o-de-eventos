@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireTrabalhador } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { empresasQueBloquearam } from "@/lib/bloqueio";
 import { Card, Badge } from "@/components/ui/card";
 import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
@@ -25,7 +26,9 @@ export default async function DescobrirEventos({
     where: { userId: s.sub, status: "ATIVO" },
     select: { empresaId: true },
   });
-  const empresaIds = vinculos.map((v) => v.empresaId);
+  // v4 item 5: empresa que bloqueou o trabalhador não mostra mais vagas para ele.
+  const bloqueadoPor = new Set(await empresasQueBloquearam(s.sub));
+  const empresaIds = vinculos.map((v) => v.empresaId).filter((id) => !bloqueadoPor.has(id));
   const vagas = empresaIds.length
     ? await vagasDisponiveis({ userId: s.sub, empresaIds, params })
     : null;

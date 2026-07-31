@@ -40,21 +40,40 @@ test.describe("v2 — Presença e avaliação", () => {
     await expect(page.getByText("Presente", { exact: true })).toBeVisible();
   });
 
-  test("empresa avalia um trabalhador (reputação)", async ({ page }) => {
+  test("empresa avalia um trabalhador por critérios (v4) e a nota geral é a média", async ({ page }) => {
     const nome = `AvalTrab-${uid()}`;
     const { emp, ev, trab } = await cenarioFinalizado(nome);
     await loginUI(page, "EMPRESA", emp.email);
     await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
 
-    await page.getByRole("button", { name: "5 estrela(s)" }).click();
+    // v4: o formulário abre por linha e traz os cinco critérios.
     await page.getByRole("button", { name: "Avaliar", exact: true }).click();
-    await expect(page.getByText("Avaliação registrada.")).toBeVisible();
+    await page.getByRole("button", { name: "Pontualidade: 5 estrela(s)" }).click();
+    await page.getByRole("button", { name: "Comunicação: 4 estrela(s)" }).click();
+    await page.getByRole("button", { name: "Trabalho em equipe: 5 estrela(s)" }).click();
+    await page.getByRole("button", { name: "Qualidade: 5 estrela(s)" }).click();
+    await page.getByRole("button", { name: "Comprometimento: 4 estrela(s)" }).click();
+    // Prévia da nota geral antes de salvar: média 4,6.
+    await expect(page.getByTestId("previa-nota")).toContainText("4,6");
 
-    // Confirma no banco
-    const av = await prisma.avaliacao.findFirst({
+    await page.getByRole("button", { name: "Salvar avaliação" }).click();
+    await expect(page.getByTestId("flash")).toContainText("Avaliação registrada.");
+
+    const av = await prisma.avaliacao.findFirstOrThrow({
       where: { eventoId: ev.id, userId: trab.id, autor: "EMPRESA" },
     });
-    expect(av?.nota).toBe(5);
+    // Nota geral = média arredondada dos critérios (4,6 -> 5), preservando a coluna
+    // que reputação e score já usavam.
+    expect(av.nota).toBe(5);
+    expect(av.notaPontualidade).toBe(5);
+    expect(av.notaComunicacao).toBe(4);
+    expect(av.notaComprometimento).toBe(4);
+
+    // O trabalhador é avisado da avaliação recebida.
+    const notif = await prisma.notificacao.findFirst({
+      where: { userId: trab.id, tipo: "AVALIACAO_RECEBIDA" },
+    });
+    expect(notif?.mensagem).toContain("nota geral 5");
   });
 
   test("trabalhador avalia a empresa pelo histórico", async ({ page }) => {

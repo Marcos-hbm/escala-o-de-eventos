@@ -3,7 +3,7 @@ import { rotuloPapel } from "@/lib/rbac";
 import { Shell, type NavItem } from "@/components/shell";
 import { cookies } from "next/headers";
 import { COOKIE_TEMA, temaOuPadrao } from "@/lib/tema";
-import { LayoutDashboard, CalendarDays, Link2, UserRound, Users, CreditCard, Wallet } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Link2, UserRound, Users, CreditCard, Wallet, Star } from "lucide-react";
 
 export default async function EmpresaLayout({ children }: { children: React.ReactNode }) {
   const s = await requireEmpresa();
@@ -14,6 +14,10 @@ export default async function EmpresaLayout({ children }: { children: React.Reac
     { href: "/empresa/vinculos", label: "Vínculos", icon: <Link2 className="h-4 w-4" /> },
     // v3 (SaaS): Equipe só para quem gerencia a equipe; Plano é visível a todos
     // (a troca de plano é que exige papel de Proprietário).
+    // v4 — favoritos e bloqueios ficam com quem opera (COORDENADOR já basta).
+    ...(sessaoPode(s, "relacionamento:gerenciar")
+      ? [{ href: "/empresa/relacionamento", label: "Relacionamento", icon: <Star className="h-4 w-4" /> }]
+      : []),
     // v4 — Financeiro só aparece para quem tem permissão financeira (ADR 0005).
     ...(sessaoPode(s, "financeiro:ver")
       ? [{ href: "/empresa/financeiro", label: "Financeiro", icon: <Wallet className="h-4 w-4" /> }]

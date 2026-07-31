@@ -38,7 +38,18 @@ export default async function EscalarPage({
         where: { status: { in: ["INSCRITO", "ESCALADO", "PRESENTE", "FALTA"] } },
         include: { user: { select: { id: true, nome: true, cpf: true, telefone: true, habilidades: true } } },
       },
-      avaliacoes: { where: { autor: "EMPRESA" }, select: { userId: true, nota: true } },
+      avaliacoes: {
+        where: { autor: "EMPRESA" },
+        select: {
+          userId: true,
+          nota: true,
+          notaPontualidade: true,
+          notaComunicacao: true,
+          notaTrabalhoEquipe: true,
+          notaQualidade: true,
+          notaComprometimento: true,
+        },
+      },
     },
   });
   if (!evento || evento.empresaId !== s.sub) notFound();
@@ -58,6 +69,19 @@ export default async function EscalarPage({
     conflitosDeAgenda(userIds, evento.dataEvento, eventoId),
   ]);
   const notaPorUser = new Map(evento.avaliacoes.map((a) => [a.userId, a.nota]));
+  // v4: notas por critério, para reavaliar já com o que foi dado antes.
+  const criteriosPorUser = new Map(
+    evento.avaliacoes.map((a) => [
+      a.userId,
+      {
+        pontualidade: a.notaPontualidade,
+        comunicacao: a.notaComunicacao,
+        trabalhoEquipe: a.notaTrabalhoEquipe,
+        qualidade: a.notaQualidade,
+        comprometimento: a.notaComprometimento,
+      },
+    ]),
+  );
 
   const candidatos: Candidato[] = evento.inscricoes.map((i) => {
     const rep = reps.get(i.user.id) ?? { media: null, qtd: 0 };
@@ -150,7 +174,12 @@ export default async function EscalarPage({
                     </td>
                     <td className="p-3">
                       {podeAvaliar ? (
-                        <AvaliarTrabalhador eventoId={eventoId} userId={i.user.id} notaAtual={notaPorUser.get(i.user.id) ?? null} />
+                        <AvaliarTrabalhador
+                          eventoId={eventoId}
+                          userId={i.user.id}
+                          notaAtual={notaPorUser.get(i.user.id) ?? null}
+                          notasAtuais={criteriosPorUser.get(i.user.id)}
+                        />
                       ) : (
                         <Estrelas media={notaPorUser.get(i.user.id) ?? null} />
                       )}

@@ -1,5 +1,6 @@
 import { requireEmpresa, sessaoPode } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { trabalhadoresBloqueados } from "@/lib/bloqueio";
 import { Card, Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
@@ -31,7 +32,9 @@ export default async function VinculosEmpresa({
   const convitesEnviados = vinculos.filter((v) => v.status === "PENDENTE" && v.solicitadoPor === "EMPRESA");
   const ativos = vinculos.filter((v) => v.status === "ATIVO");
 
-  const idsRelacionados = vinculos.map((v) => v.userId);
+  // v4 item 5: bloqueados não aparecem na busca de trabalhadores para convidar.
+  const bloqueados = await trabalhadoresBloqueados(s.sub);
+  const idsRelacionados = [...vinculos.map((v) => v.userId), ...bloqueados];
   const resultados = q
     ? await prisma.user.findMany({
         where: { ativo: true, nome: { startsWith: q, mode: "insensitive" }, id: { notIn: idsRelacionados } },

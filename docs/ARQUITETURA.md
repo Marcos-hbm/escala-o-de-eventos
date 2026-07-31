@@ -130,6 +130,22 @@ Empresa (tenant)
   limitação remanescente em
   [ADR 0004](adr/0004-atualizacao-de-tela-apos-server-action.md).
 
+## Relacionamento e avaliação (v4)
+
+- **Bloqueio é regra de consulta**, não só registro: `lib/bloqueio.ts` concentra as
+  três perguntas do sistema (quais empresas bloquearam este trabalhador; este
+  trabalhador está bloqueado nesta empresa; quem esta empresa bloqueou) e é usado na
+  descoberta de vagas, no detalhe do evento, na action de inscrição e na busca de
+  candidatos. Bloquear também desfaz o vínculo e cancela inscrições futuras, para não
+  existir estado contraditório.
+- **Avaliação por critérios** em `lib/domain/avaliacao.ts` (puro): a nota geral é a
+  média arredondada dos cinco critérios, o que mantém `lib/reputacao.ts` e o score da
+  escalação funcionando — inclusive para avaliações gravadas antes da v4, que só têm
+  a nota geral.
+- **Remover bloqueio exige `equipe:gerenciar`** (Administrador/Proprietário), embora
+  bloquear seja permitido ao Coordenador: quem bloqueia não deveria desfazer sozinho
+  o registro que justificou a decisão.
+
 ## Regras de negócio centrais
 
 - **RF13** — inscrição exige vínculo `ATIVO` com a empresa organizadora
