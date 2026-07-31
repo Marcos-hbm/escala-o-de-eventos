@@ -5,6 +5,7 @@ import { recursoLiberado } from "@/lib/assinatura";
 import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui/card";
 import { Estrelas } from "@/components/ui/stat";
+import { Flash } from "@/components/ui/flash";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { reabrirEvento } from "@/server/actions/escala";
@@ -18,9 +19,16 @@ import { Download, CheckCircle2, XCircle } from "lucide-react";
 
 export const metadata = { title: "Escalar — Escala" };
 
-export default async function EscalarPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EscalarPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aviso?: string; erro_op?: string }>;
+}) {
   const s = await requireEmpresa();
   const { id } = await params;
+  const sp = await searchParams;
   const eventoId = Number(id);
 
   const evento = await prisma.evento.findUnique({
@@ -82,6 +90,7 @@ export default async function EscalarPage({ params }: { params: Promise<{ id: st
 
   return (
     <div>
+      <Flash searchParams={sp} caminho={`/empresa/eventos/${eventoId}/escalar`} />
       <Link href="/empresa/eventos" className="text-sm text-brand-600 hover:underline">← Voltar</Link>
       <div className="mb-4 mt-3 flex items-center gap-2">
         <h1 className="text-2xl font-bold">Escalar — {evento.nome}</h1>

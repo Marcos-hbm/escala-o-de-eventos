@@ -7,7 +7,6 @@ import { Card, Badge } from "@/components/ui/card";
 import { Label, Input, Select, FieldError } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
 import { rotuloPapel, type PapelId } from "@/lib/rbac";
-import { useActionToast } from "@/components/use-action-toast";
 
 export interface MembroView {
   id: number;
@@ -21,7 +20,6 @@ export interface MembroView {
 /** Formulário de convite (criação) de membro. */
 export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
   const [state, formAction] = useActionState(criarMembro, initialActionState);
-  useActionToast(state);
   const fe = state.fieldErrors ?? {};
 
   return (
@@ -55,6 +53,9 @@ export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
           </div>
         </div>
         <SubmitButton pendingLabel="Adicionando...">Adicionar membro</SubmitButton>
+        {!state.ok && state.message && (
+          <p className="text-sm text-red-600" role="alert">{state.message}</p>
+        )}
       </form>
     </Card>
   );
@@ -64,8 +65,6 @@ export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
 export function MembroLinha({ membro, papeis }: { membro: MembroView; papeis: PapelId[] }) {
   const [statePapel, acaoPapel] = useActionState(alterarPapel, initialActionState);
   const [stateAtivo, acaoAtivo] = useActionState(alternarMembroAtivo, initialActionState);
-  useActionToast(statePapel);
-  useActionToast(stateAtivo);
 
   return (
     <Card className="space-y-2">
@@ -96,6 +95,12 @@ export function MembroLinha({ membro, papeis }: { membro: MembroView; papeis: Pa
           <SubmitButton size="sm" variant="outline" pendingLabel="...">Salvar papel</SubmitButton>
         </form>
 
+        {!statePapel.ok && statePapel.message && (
+          <p className="w-full text-sm text-red-600" role="alert">{statePapel.message}</p>
+        )}
+        {!stateAtivo.ok && stateAtivo.message && (
+          <p className="w-full text-sm text-red-600" role="alert">{stateAtivo.message}</p>
+        )}
         {!membro.souEu && (
           <form action={acaoAtivo}>
             <input type="hidden" name="membroId" value={membro.id} />

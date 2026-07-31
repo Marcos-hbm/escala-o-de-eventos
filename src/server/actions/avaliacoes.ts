@@ -6,6 +6,7 @@ import { erroDePermissao, requireEmpresa, requireTrabalhador } from "@/lib/auth"
 import { registrarAuditoria } from "@/lib/audit";
 import { avaliacaoSchema } from "@/lib/validations";
 import { type ActionState } from "@/lib/actions";
+import { voltarComSucesso } from "@/server/actions/navegacao";
 
 const STATUS_ESCALADO = ["ESCALADO", "PRESENTE", "FALTA"] as const;
 
@@ -23,6 +24,7 @@ export async function avaliarTrabalhador(_prev: ActionState, formData: FormData)
     nota: formData.get("nota"),
     comentario: formData.get("comentario"),
   });
+  const alvo = `/empresa/eventos/${eventoId}/escalar`;
   if (!parsed.success) return { ok: false, message: "Nota inválida (use 1 a 5)." };
 
   const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
@@ -43,8 +45,8 @@ export async function avaliarTrabalhador(_prev: ActionState, formData: FormData)
   });
 
   await registrarAuditoria({ atorTipo: "EMPRESA", atorId: s.sub, acao: "AVALIACAO_TRABALHADOR", entidade: "User", entidadeId: userId });
-  revalidatePath(`/empresa/eventos/${eventoId}/escalar`);
-  return { ok: true, message: "Avaliação registrada." };
+  revalidatePath(alvo);
+  return voltarComSucesso(alvo, "Avaliação registrada.");
 }
 
 // --------------------------------------------------------------------------
@@ -57,6 +59,7 @@ export async function avaliarEmpresa(_prev: ActionState, formData: FormData): Pr
     nota: formData.get("nota"),
     comentario: formData.get("comentario"),
   });
+  const alvoTrab = "/trabalhador/historico";
   if (!parsed.success) return { ok: false, message: "Nota inválida (use 1 a 5)." };
 
   const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
@@ -77,6 +80,6 @@ export async function avaliarEmpresa(_prev: ActionState, formData: FormData): Pr
   });
 
   await registrarAuditoria({ atorTipo: "TRABALHADOR", atorId: s.sub, acao: "AVALIACAO_EMPRESA", entidade: "Empresa", entidadeId: evento.empresaId });
-  revalidatePath("/trabalhador/historico");
-  return { ok: true, message: "Avaliação registrada." };
+  revalidatePath(alvoTrab);
+  return voltarComSucesso(alvoTrab, "Avaliação registrada.");
 }

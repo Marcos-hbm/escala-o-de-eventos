@@ -7,6 +7,7 @@ import { registrarAuditoria } from "@/lib/audit";
 import { notificarEmLote } from "@/lib/notifications";
 import { escalarSchema } from "@/lib/validations";
 import { type ActionState } from "@/lib/actions";
+import { voltarComSucesso } from "@/server/actions/navegacao";
 import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 /**
@@ -30,6 +31,7 @@ export async function escalarEFinalizar(_prev: ActionState, formData: FormData):
     return { ok: false, message: "Selecione ao menos um trabalhador para escalar." };
   }
   const { eventoId, userIds } = parsed.data;
+  const alvo = `/empresa/eventos/${eventoId}/escalar`;
 
   const evento = await prisma.evento.findUnique({ where: { id: eventoId } });
   if (!evento || evento.empresaId !== s.sub) {
@@ -79,9 +81,9 @@ export async function escalarEFinalizar(_prev: ActionState, formData: FormData):
     detalhe: `${idsValidos.length} escalados`,
   });
 
-  revalidatePath(`/empresa/eventos/${eventoId}/escalar`);
+  revalidatePath(alvo);
   revalidatePath("/empresa/eventos");
-  return { ok: true, message: `Escala finalizada com ${idsValidos.length} trabalhador(es).` };
+  return voltarComSucesso(alvo, `Escala finalizada com ${idsValidos.length} trabalhador(es).`);
 }
 
 /** Reabre um evento finalizado para nova escala (correção operacional). */

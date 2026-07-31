@@ -6,10 +6,16 @@ import { Card } from "@/components/ui/card";
 import { Estrelas } from "@/components/ui/stat";
 import { PerfilTrabalhadorForm } from "./form";
 import { notFound } from "next/navigation";
+import { Flash } from "@/components/ui/flash";
 
 export const metadata = { title: "Perfil — Escala" };
 
-export default async function PerfilTrabalhador() {
+export default async function PerfilTrabalhador({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string; erro_op?: string }>;
+}) {
+  const sp = await searchParams;
   const s = await requireTrabalhador();
   const user = await prisma.user.findUnique({
     where: { id: s.sub },
@@ -24,6 +30,7 @@ export default async function PerfilTrabalhador() {
 
   return (
     <div className="space-y-6">
+      <Flash searchParams={sp} caminho="/trabalhador/perfil" />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Meu perfil</h1>
         <Card className="px-4 py-2">

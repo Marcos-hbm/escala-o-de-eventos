@@ -151,6 +151,9 @@ a aplicação em execução + PostgreSQL.
 | CT-83 | Guarda: nenhuma formatação de data fora de lib/datetime.ts | Unitário | datetime.test |
 | CT-84 | Paginação: clamp de entrada hostil, metadados e URLs (14 asserts) | Unitário | paginacao.test |
 | CT-85 | Redirecionamento pós-mutação recusa destino externo (open redirect) | Unitário | navegacao.test |
+| CT-86 | Aviso de sucesso renderizado no servidor, fechável por link | E2E | ux.spec |
+| CT-87 | Recusa por regra de negócio aparece no formulário e nada é alterado | E2E | ux.spec |
+| CT-88 | Flash na URL: preserva filtros, não acumula, limita tamanho (12 asserts) | Unitário | flash.test |
 
 ---
 

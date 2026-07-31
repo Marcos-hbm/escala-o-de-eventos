@@ -8,6 +8,7 @@ import { papeisAtribuiveis, rotuloPapel, type PapelId } from "@/lib/rbac";
 import { registrarAuditoria } from "@/lib/audit";
 import { alterarPapelSchema, membroSchema } from "@/lib/validations";
 import { type ActionState, zodToFieldErrors } from "@/lib/actions";
+import { voltarComSucesso } from "@/server/actions/navegacao";
 
 /**
  * v3 (SaaS) — Equipe da empresa (multiusuário + RBAC).
@@ -73,7 +74,7 @@ export async function criarMembro(_prev: ActionState, formData: FormData): Promi
   });
 
   revalidatePath("/empresa/equipe");
-  return { ok: true, message: `${d.nome} agora tem acesso como ${rotuloPapel(d.papel)}.` };
+  return voltarComSucesso("/empresa/equipe", `${d.nome} agora tem acesso como ${rotuloPapel(d.papel)}.`);
 }
 
 // --------------------------------------------------------------------------
@@ -89,7 +90,7 @@ export async function alterarPapel(_prev: ActionState, formData: FormData): Prom
     papel: formData.get("papel"),
   });
   if (!parsed.success) return { ok: false, message: "Papel inválido." };
-  const { membroId, papel } = parsed.data;
+  const { membroId, papel } = parsed.data!;
 
   const membro = await prisma.membro.findUnique({ where: { id: membroId } });
   if (!membro || membro.empresaId !== s.sub) return { ok: false, message: "Membro não encontrado." };
@@ -99,15 +100,18 @@ export async function alterarPapel(_prev: ActionState, formData: FormData): Prom
   if (!atribuiveis.includes(papel)) {
     return { ok: false, message: `Você não pode atribuir o papel ${rotuloPapel(papel)}.` };
   }
-  if (membro.papel === "PROPRIETARIO" && meuPapel !== "PROPRIETARIO") {
+  if (membro!.papel === "PROPRIETARIO" && meuPapel !== "PROPRIETARIO") {
     return { ok: false, message: "Somente o Proprietário pode alterar o papel do Proprietário." };
   }
-  if (membro.papel === "PROPRIETARIO" && papel !== "PROPRIETARIO") {
+  if (membro!.papel === "PROPRIETARIO" && papel !== "PROPRIETARIO") {
     const outrosDonos = await prisma.membro.count({
       where: { empresaId: s.sub, papel: "PROPRIETARIO", ativo: true, id: { not: membroId } },
     });
     if (outrosDonos === 0) {
-      return { ok: false, message: "A empresa precisa de ao menos um Proprietário ativo. Promova outro membro antes." };
+      return {
+        ok: false,
+        message: "A empresa precisa de ao menos um Proprietário ativo. Promova outro membro antes.",
+      };
     }
   }
 
@@ -118,11 +122,11 @@ export async function alterarPapel(_prev: ActionState, formData: FormData): Prom
     acao: "MEMBRO_PAPEL_ALTERADO",
     entidade: "Membro",
     entidadeId: membroId,
-    detalhe: detalheAtor(s.membroNome, `${membro.email}: ${rotuloPapel(membro.papel as PapelId)} → ${rotuloPapel(papel)}`),
+    detalhe: detalheAtor(s.membroNome, `${membro!.email}: ${rotuloPapel(membro!.papel as PapelId)} → ${rotuloPapel(papel)}`),
   });
 
   revalidatePath("/empresa/equipe");
-  return { ok: true, message: `${membro.nome} agora é ${rotuloPapel(papel)}.` };
+  return voltarComSucesso("/empresa/equipe", `${membro!.nome} agora é ${rotuloPapel(papel)}.`);
 }
 
 // --------------------------------------------------------------------------
@@ -137,19 +141,19 @@ export async function alternarMembroAtivo(_prev: ActionState, formData: FormData
   const membro = await prisma.membro.findUnique({ where: { id: membroId } });
   if (!membro || membro.empresaId !== s.sub) return { ok: false, message: "Membro não encontrado." };
 
-  if (membro.id === s.membroId) {
+  if (membro!.id === s.membroId) {
     return { ok: false, message: "Você não pode desativar o seu próprio acesso." };
   }
-  if (membro.papel === "PROPRIETARIO" && papelDaSessao(s) !== "PROPRIETARIO") {
+  if (membro!.papel === "PROPRIETARIO" && papelDaSessao(s) !== "PROPRIETARIO") {
     return { ok: false, message: "Somente o Proprietário pode desativar o Proprietário." };
   }
 
-  const ativar = !membro.ativo;
+  const ativar = !membro!.ativo;
   if (ativar) {
     // Reativar consome cota de membros novamente.
     const limite = await erroDeLimite(s.sub, "maxMembros");
     if (limite) return { ok: false, message: limite };
-  } else if (membro.papel === "PROPRIETARIO") {
+  } else if (membro!.papel === "PROPRIETARIO") {
     const outrosDonos = await prisma.membro.count({
       where: { empresaId: s.sub, papel: "PROPRIETARIO", ativo: true, id: { not: membroId } },
     });
@@ -165,12 +169,12 @@ export async function alternarMembroAtivo(_prev: ActionState, formData: FormData
     acao: ativar ? "MEMBRO_REATIVADO" : "MEMBRO_DESATIVADO",
     entidade: "Membro",
     entidadeId: membroId,
-    detalhe: detalheAtor(s.membroNome, membro.email),
+    detalhe: detalheAtor(s.membroNome, membro!.email),
   });
 
   revalidatePath("/empresa/equipe");
-  return {
-    ok: true,
-    message: ativar ? `Acesso de ${membro.nome} reativado.` : `Acesso de ${membro.nome} revogado.`,
-  };
+  return voltarComSucesso(
+    "/empresa/equipe",
+    ativar ? `Acesso de ${membro!.nome} reativado.` : `Acesso de ${membro!.nome} revogado.`,
+  );
 }

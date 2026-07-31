@@ -136,25 +136,46 @@ test.describe("Paginação e empty states", () => {
   });
 });
 
-test.describe("Toasts", () => {
-  test("ação de equipe emite toast acessível que pode ser fechado", async ({ page }) => {
+test.describe("Aviso de resultado (flash renderizado no servidor)", () => {
+  test("ação de equipe confirma no servidor, com aviso fechável e sem depender do cliente", async ({ page }) => {
     const emp = await novaEmpresa({ plano: "PROFESSIONAL" });
     await loginUI(page, "EMPRESA", emp.email);
     await irPara(page, "/empresa/equipe");
 
-    await page.getByLabel("Nome *").fill("Membro Toast");
-    await page.getByLabel("E-mail *").fill(`toast_${uid()}@e2e.test`);
+    await page.getByLabel("Nome *").fill("Membro Flash");
+    await page.getByLabel("E-mail *").fill(`flash_${uid()}@e2e.test`);
     await page.getByLabel("Senha provisória *").fill("Senha@123");
     await page.getByRole("button", { name: "Adicionar membro" }).click();
 
-    const toast = page.getByTestId("toast");
-    await expect(toast).toBeVisible();
-    await expect(toast).toHaveAttribute("data-tom", "sucesso");
-    await expect(toast).toContainText("Coordenador");
-    // Região com aria-live para leitores de tela.
-    await expect(page.getByTestId("toast-region")).toHaveAttribute("aria-live", "polite");
+    // A mensagem viaja na URL e é renderizada pelo servidor no mesmo render que
+    // traz os dados novos: dado atualizado e aviso não podem divergir (ADR 0004).
+    await expect(page).toHaveURL(/aviso=/);
+    const flash = page.getByTestId("flash");
+    await expect(flash).toBeVisible();
+    await expect(flash).toHaveAttribute("data-tipo", "ok");
+    await expect(flash).toContainText("agora tem acesso como Coordenador");
+    await expect(page.getByText("Membro Flash", { exact: true })).toBeVisible(); // linha na lista
 
-    await toast.getByRole("button", { name: /Fechar aviso/ }).click();
-    await expect(toast).toHaveCount(0);
+    // Fechar é um link (funciona sem JavaScript) e preserva o resto da URL.
+    await flash.getByRole("link", { name: "Fechar aviso" }).click();
+    await expect(page).not.toHaveURL(/aviso=/);
+    await expect(page.getByTestId("flash")).toHaveCount(0);
+  });
+
+  test("operação recusada aparece junto do formulário e nada é alterado", async ({ page }) => {
+    const emp = await novaEmpresa({ plano: "PROFESSIONAL" });
+    for (let i = 0; i < 4; i++) await novoEvento(emp.id, { nome: `Down ${i} ${uid()}` });
+
+    await loginUI(page, "EMPRESA", emp.email);
+    await irPara(page, "/empresa/plano");
+    await page.getByRole("button", { name: "Mudar para Starter" }).click();
+
+    // Recusa não escreve no banco, então não redireciona: a mensagem fica no
+    // próprio formulário (ver ADR 0004 — sucesso usa flash do servidor porque aí
+    // a tela precisa mostrar dado novo).
+    await expect(page.getByRole("alert").filter({ hasText: "acima do limite em 4 eventos ativos" })).toBeVisible();
+    await expect(page.getByTestId("plano-atual")).toHaveText("Professional");
+    const ass = await prisma.assinatura.findUnique({ where: { empresaId: emp.id } });
+    expect(ass?.plano).toBe("PROFESSIONAL");
   });
 });

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui/card";
 import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
+import { Flash } from "@/components/ui/flash";
 import { AvaliarEmpresa } from "./avaliar-empresa";
 
 export const metadata = { title: "Histórico — Escala" };
@@ -18,8 +19,13 @@ const rotulo: Record<string, { texto: string; tone: "success" | "info" | "neutra
   FALTA: { texto: "Falta", tone: "danger" },
 };
 
-export default async function Historico() {
+export default async function Historico({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string; erro_op?: string }>;
+}) {
   const s = await requireTrabalhador();
+  const sp = await searchParams;
 
   // RF12 — histórico de participações.
   const inscricoes = await prisma.inscricao.findMany({
@@ -37,6 +43,7 @@ export default async function Historico() {
 
   return (
     <div>
+      <Flash searchParams={sp} caminho="/trabalhador/historico" />
       <h1 className="text-2xl font-bold">Histórico de participações</h1>
       <p className="mb-6 text-sm text-muted">Todos os eventos aos quais você se candidatou.</p>
 

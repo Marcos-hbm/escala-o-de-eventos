@@ -5,7 +5,6 @@ import { initialActionState, type ActionState } from "@/lib/actions";
 import { Card } from "@/components/ui/card";
 import { Label, Input, Textarea, FieldError } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
-import { useActionToast } from "@/components/use-action-toast";
 
 type Acao = (prev: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -24,7 +23,6 @@ export interface EventoInicial {
 
 export function EventoForm({ action, inicial, textoBotao }: { action: Acao; inicial?: EventoInicial; textoBotao: string }) {
   const [state, formAction] = useActionState(action, initialActionState);
-  useActionToast(state);
   const fe = state.fieldErrors ?? {};
   const v = inicial ?? {};
 

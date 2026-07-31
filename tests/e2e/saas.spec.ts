@@ -198,6 +198,7 @@ test.describe("v3 — Plano e assinatura", () => {
     // pelo caminho nativo do formulário — a troca ocorre, mas o toast, que depende
     // de efeito no cliente, não é exibido.
     await expect(page.getByTestId("plano-atual")).toHaveText("Professional");
+    await expect(page.getByTestId("flash")).toContainText("Plano alterado para Professional.");
 
     const ass = await prisma.assinatura.findUnique({ where: { empresaId: emp.id } });
     expect(ass?.plano).toBe("PROFESSIONAL");

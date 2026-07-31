@@ -12,6 +12,7 @@ import {
 import { Card, Badge } from "@/components/ui/card";
 import { Bar, StatTile } from "@/components/ui/stat";
 import { AvisoNegado } from "@/components/aviso-negado";
+import { Flash } from "@/components/ui/flash";
 import { TrocarPlanoForm } from "./plano-form";
 import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
@@ -39,10 +40,11 @@ const TOM_STATUS = {
 export default async function PlanoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ negado?: string }>;
+  searchParams: Promise<{ negado?: string; aviso?: string; erro_op?: string }>;
 }) {
   const s = await requireEmpresa();
-  const { negado } = await searchParams;
+  const sp = await searchParams;
+  const { negado } = sp;
   const podeTrocar = sessaoPode(s, "plano:gerenciar");
 
   const [assinatura, uso] = await Promise.all([assinaturaDaEmpresa(s.sub), usoDaEmpresa(s.sub)]);
@@ -51,6 +53,7 @@ export default async function PlanoPage({
 
   return (
     <div className="space-y-6">
+      <Flash searchParams={sp} caminho="/empresa/plano" />
       <AvisoNegado negado={negado} papel={papelDaSessao(s)} />
 
       <div>

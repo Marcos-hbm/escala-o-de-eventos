@@ -11,7 +11,7 @@ import { anonimizarTrabalhador, anonimizarEmpresa } from "@/lib/lgpd";
 import { pode } from "@/lib/rbac";
 import { perfilTrabalhadorSchema, perfilEmpresaSchema } from "@/lib/validations";
 import { type ActionState, zodToFieldErrors } from "@/lib/actions";
-import { voltarParaOrigem } from "@/server/actions/navegacao";
+import { voltarComSucesso, voltarParaOrigem } from "@/server/actions/navegacao";
 
 // --------------------------------------------------------------------------
 // RF04 — Editar perfil do trabalhador (inclui foto)
@@ -52,7 +52,7 @@ export async function editarPerfilTrabalhador(_prev: ActionState, formData: Form
 
   await registrarAuditoria({ atorTipo: "TRABALHADOR", atorId: s.sub, acao: "PERFIL_EDITADO" });
   revalidatePath("/trabalhador/perfil");
-  return { ok: true, message: "Perfil atualizado." };
+  return voltarComSucesso("/trabalhador/perfil", "Perfil atualizado.");
 }
 
 // --------------------------------------------------------------------------
@@ -89,7 +89,7 @@ export async function editarPerfilEmpresa(_prev: ActionState, formData: FormData
 
   await registrarAuditoria({ atorTipo: "EMPRESA", atorId: s.sub, acao: "PERFIL_EDITADO" });
   revalidatePath("/empresa/perfil");
-  return { ok: true, message: "Perfil atualizado." };
+  return voltarComSucesso("/empresa/perfil", "Perfil atualizado.");
 }
 
 // --------------------------------------------------------------------------

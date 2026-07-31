@@ -6,6 +6,7 @@ import { cabeMais, limitesDoPlano, pctUso, rotuloLimite, rotuloPlano } from "@/l
 import { DESCRICOES_PAPEL, ORDEM_PAPEIS, papeisAtribuiveis, rotuloPapel } from "@/lib/rbac";
 import { Card } from "@/components/ui/card";
 import { Bar } from "@/components/ui/stat";
+import { Flash } from "@/components/ui/flash";
 import { MembroLinha, NovoMembroForm, type MembroView } from "./equipe-forms";
 
 export const metadata = { title: "Equipe — Escala" };
@@ -14,7 +15,12 @@ export const metadata = { title: "Equipe — Escala" };
  * v3 (SaaS) — Equipe da empresa: usuários da conta e seus papéis (RBAC), com o
  * consumo da cota de usuários do plano.
  */
-export default async function EquipePage() {
+export default async function EquipePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string; erro_op?: string }>;
+}) {
+  const sp = await searchParams;
   const s = await requirePermissao("equipe:gerenciar");
   const meuPapel = papelDaSessao(s);
 
@@ -38,6 +44,7 @@ export default async function EquipePage() {
 
   return (
     <div className="space-y-6">
+      <Flash searchParams={sp} caminho="/empresa/equipe" />
       <div>
         <h1 className="text-2xl font-bold">Equipe</h1>
         <p className="text-sm text-muted">

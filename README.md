@@ -22,13 +22,15 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
   já no servidor (sem flash de tema errado).
 - **Paginação server-side** nas listagens (eventos, vagas, notificações), com
   clamp de parâmetros de URL e links acessíveis.
-- **Empty states, skeletons e toasts** acessíveis (região `aria-live`,
-  auto-dismiss pausável, botão de fechar com nome).
+- **Empty states e skeletons** acessíveis, e **aviso de resultado renderizado no
+  servidor**: a mensagem de sucesso viaja na URL e aparece no mesmo render que traz
+  os dados novos (funciona sem JavaScript, inclusive o fechar). Recusa por regra de
+  negócio continua junto do formulário.
 
-Detalhes em [`docs/ADRs 0003 e 0004`](docs/adr/). **Limitação conhecida** nesta
-fase: em parte das execuções, telas cuja ação usa toast podem seguir exibindo o
-estado anterior até uma navegação — o dado no banco está sempre correto. Medições
-e a correção proposta estão no
+Detalhes em [`docs/ADRs 0003 e 0004`](docs/adr/). **Limitação conhecida**: em parte
+das execuções (0 a 2 em 87 testes por rodada) o cliente não aplica o resultado da
+action e a tela segue no estado anterior até uma navegação — o dado no banco está
+sempre correto. Medições, hipóteses descartadas e próximos passos no
 [ADR 0004](docs/adr/0004-atualizacao-de-tela-apos-server-action.md).
 
 ---
@@ -164,18 +166,18 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 85 testes unitários (Vitest) — sem banco
+npm test                      # 93 testes unitários (Vitest) — sem banco
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 
-# Suíte E2E completa (86 testes) — precisa da app + PostgreSQL.
+# Suíte E2E completa (87 testes) — precisa da app + PostgreSQL.
 # Mais estável contra o build de produção:
 npm run db:up                 # ou docker compose up -d
 npm run build && npm start &  # servidor de produção em :3000
 E2E_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
-A matriz completa de casos (CT-01…CT-85) está em
+A matriz completa de casos (CT-01…CT-87) está em
 [`docs/CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md). Os testes E2E criam dados
 isolados por teste (CPF/CNPJ válidos gerados), então rodam em paralelo e
 repetidamente sem interferência. Cobrem: cadastro/login (positivos e negativos),

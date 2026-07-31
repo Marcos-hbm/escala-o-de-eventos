@@ -6,11 +6,9 @@ import { initialActionState } from "@/lib/actions";
 import { StarRating } from "@/components/star-rating";
 import { Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
-import { useActionToast } from "@/components/use-action-toast";
 
 export function AvaliarEmpresa({ eventoId, notaAtual }: { eventoId: number; notaAtual: number | null }) {
   const [state, formAction] = useActionState(avaliarEmpresa, initialActionState);
-  useActionToast(state);
   return (
     <form action={formAction} className="mt-2 flex flex-wrap items-center gap-2">
       <input type="hidden" name="eventoId" value={eventoId} />

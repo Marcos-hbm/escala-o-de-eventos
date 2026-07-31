@@ -8,6 +8,7 @@ import { limitesDoPlano, rotuloLimite, rotuloPlano, type RecursoContavel } from 
 import { registrarAuditoria } from "@/lib/audit";
 import { planoSchema } from "@/lib/validations";
 import { type ActionState } from "@/lib/actions";
+import { voltarComSucesso } from "@/server/actions/navegacao";
 
 /**
  * v3 (SaaS) — Troca de plano.
@@ -71,5 +72,5 @@ export async function trocarPlano(_prev: ActionState, formData: FormData): Promi
 
   revalidatePath("/empresa/plano");
   revalidatePath("/empresa/equipe");
-  return { ok: true, message: `Plano alterado para ${rotuloPlano(destino)}.` };
+  return voltarComSucesso("/empresa/plano", `Plano alterado para ${rotuloPlano(destino)}.`);
 }

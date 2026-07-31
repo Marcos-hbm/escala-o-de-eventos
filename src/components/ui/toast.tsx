@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 /**
  * Toasts sem dependência externa.
  *
+ * ESCOPO: confirmações puramente de **cliente**, que não têm ida ao servidor —
+ * por exemplo "chave PIX copiada" (fase 3). Resultado de server action NÃO usa
+ * toast: vai por `lib/flash.ts` + `components/ui/flash.tsx`, renderizado no
+ * servidor, porque o toast dependia de o cliente aplicar a resposta da action e
+ * isso falhava em parte das execuções (ADR 0004).
+ *
  * Acessibilidade: a região é `aria-live="polite"` + `role="status"` para erro/aviso
  * não roubarem o foco do usuário no meio de um formulário; o leitor de tela anuncia
  * quando ele terminar a frase atual. Cada toast tem botão de fechar com nome

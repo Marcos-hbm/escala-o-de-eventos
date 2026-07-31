@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { formatCPF } from "@/lib/utils";
 import { AlertTriangle } from "lucide-react";
-import { useActionToast } from "@/components/use-action-toast";
 
 export interface Candidato {
   userId: number;
@@ -42,7 +41,6 @@ export function EscalarForm({
   inteligente: boolean;
 }) {
   const [state, formAction] = useActionState(escalarEFinalizar, initialActionState);
-  useActionToast(state);
   const [selecionados, setSelecionados] = useState<Set<number>>(
     () => new Set(candidatos.filter((c) => c.jaEscalado).map((c) => c.userId)),
   );
@@ -145,6 +143,10 @@ export function EscalarForm({
         </table>
       </div>
 
+
+      {!state.ok && state.message && (
+        <p className="mt-3 text-sm text-red-600" role="alert">{state.message}</p>
+      )}
 
       <div className="mt-4">
         <SubmitButton disabled={!algumMarcado} pendingLabel="Finalizando...">
