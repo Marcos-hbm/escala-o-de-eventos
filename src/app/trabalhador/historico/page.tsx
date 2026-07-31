@@ -1,7 +1,8 @@
 import { requireTrabalhador } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui/card";
-import { formatBRL, formatData } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { AvaliarEmpresa } from "./avaliar-empresa";
 
 export const metadata = { title: "Histórico — Escala" };
@@ -52,7 +53,7 @@ export default async function Historico() {
                   <div>
                     <p className="font-medium">{i.evento.nome}</p>
                     <p className="text-xs text-muted">
-                      {i.evento.empresa.nome} · {formatData(i.evento.dataEvento)} · {formatBRL(Number(i.evento.valorCache))}
+                      {i.evento.empresa.nome} · {formatarDataCivil(i.evento.dataEvento)} · {formatBRL(Number(i.evento.valorCache))}
                     </p>
                   </div>
                   <Badge tone={r.tone}>{r.texto}</Badge>

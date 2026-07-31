@@ -1,4 +1,4 @@
-import { test, expect, prisma, loginUI, novaEmpresa, novoTrabalhador, vincular, novoEvento, inscrever, uid } from "./fixtures";
+import { test, expect, prisma, loginUI, novaEmpresa, novoTrabalhador, vincular, novoEvento, inscrever, uid, irPara } from "./fixtures";
 
 /** v2 — painéis, controle de presença e avaliação bidirecional. */
 
@@ -6,7 +6,7 @@ test.describe("v2 — Painéis (KPIs)", () => {
   test("empresa vê o painel com KPIs", async ({ page }) => {
     const emp = await novaEmpresa();
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/dashboard");
+    await irPara(page, "/empresa/dashboard");
     await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
     await expect(page.getByText("Eventos", { exact: true })).toBeVisible();
     await expect(page.getByText("Reputação", { exact: true })).toBeVisible();
@@ -15,7 +15,7 @@ test.describe("v2 — Painéis (KPIs)", () => {
   test("trabalhador vê o painel com KPIs", async ({ page }) => {
     const t = await novoTrabalhador();
     await loginUI(page, "TRABALHADOR", t.email);
-    await page.goto("/trabalhador/dashboard");
+    await irPara(page, "/trabalhador/dashboard");
     await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
     await expect(page.getByText("Escalações", { exact: true })).toBeVisible();
   });
@@ -35,7 +35,7 @@ test.describe("v2 — Presença e avaliação", () => {
     const nome = `PresTrab-${uid()}`;
     const { emp, ev } = await cenarioFinalizado(nome);
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await page.getByRole("button", { name: `Presença de ${nome}` }).click();
     await expect(page.getByText("Presente", { exact: true })).toBeVisible();
   });
@@ -44,7 +44,7 @@ test.describe("v2 — Presença e avaliação", () => {
     const nome = `AvalTrab-${uid()}`;
     const { emp, ev, trab } = await cenarioFinalizado(nome);
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
 
     await page.getByRole("button", { name: "5 estrela(s)" }).click();
     await page.getByRole("button", { name: "Avaliar", exact: true }).click();
@@ -60,7 +60,7 @@ test.describe("v2 — Presença e avaliação", () => {
   test("trabalhador avalia a empresa pelo histórico", async ({ page }) => {
     const { emp, ev, trab } = await cenarioFinalizado(`HistTrab-${uid()}`);
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/historico");
+    await irPara(page, "/trabalhador/historico");
     await page.getByRole("button", { name: "4 estrela(s)" }).first().click();
     await page.getByRole("button", { name: /Avaliar empresa/ }).first().click();
     await expect(page.getByText("Avaliação registrada.")).toBeVisible();

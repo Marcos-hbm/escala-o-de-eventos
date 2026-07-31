@@ -6,7 +6,8 @@ import { Card, Badge } from "@/components/ui/card";
 import { AvisoNegado } from "@/components/aviso-negado";
 import { StatTile, Bar, Estrelas } from "@/components/ui/stat";
 import { porcentagem } from "@/lib/stats";
-import { formatBRL, formatData } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { CalendarDays, Users, ListChecks, Star, Plus } from "lucide-react";
 
 export const metadata = { title: "Painel — Escala" };
@@ -84,7 +85,7 @@ export default async function DashboardEmpresa({
               <div key={e.id} className="flex items-center justify-between rounded-lg border border-surface p-3">
                 <div>
                   <p className="font-medium">{e.nome}</p>
-                  <p className="text-xs text-muted">{formatData(e.dataEvento)} · {e._count.inscricoes} inscrito(s) · {formatBRL(Number(e.valorCache))}</p>
+                  <p className="text-xs text-muted">{formatarDataCivil(e.dataEvento)} · {e._count.inscricoes} inscrito(s) · {formatBRL(Number(e.valorCache))}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge tone="info">{e.vagas} vaga(s)</Badge>

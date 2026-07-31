@@ -1,4 +1,4 @@
-import { test, expect, loginUI, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid } from "./fixtures";
+import { test, expect, loginUI, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid, irPara } from "./fixtures";
 
 /** RF10/RF11 — Escalação, seleção, finalização, CSV e reabertura. */
 
@@ -19,7 +19,7 @@ test.describe("Escalação (RF10/RF11)", () => {
   test("escalar todos, finalizar e baixar CSV com conteúdo correto", async ({ page }) => {
     const { emp, ev, trabs } = await cenario(2);
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
 
     await page.getByRole("button", { name: "Selecionar todos" }).click();
     await page.getByRole("button", { name: "Escalar e finalizar evento" }).click();
@@ -39,14 +39,14 @@ test.describe("Escalação (RF10/RF11)", () => {
   test("botão finalizar desabilitado sem seleção", async ({ page }) => {
     const { emp, ev } = await cenario(1);
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await expect(page.getByRole("button", { name: "Escalar e finalizar evento" })).toBeDisabled();
   });
 
   test("selecionar todos e depois desmarcar todos", async ({ page }) => {
     const { emp, ev } = await cenario(2);
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await page.getByRole("button", { name: "Selecionar todos" }).click();
     await expect(page.getByRole("button", { name: "Escalar e finalizar evento" })).toBeEnabled();
     await page.getByRole("button", { name: "Desmarcar todos" }).click();
@@ -57,7 +57,7 @@ test.describe("Escalação (RF10/RF11)", () => {
     const emp = await novaEmpresa();
     const ev = await novoEvento(emp.id, { nome: `Vazio ${uid()}` });
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await expect(page.getByText("Nenhum trabalhador se inscreveu neste evento ainda.")).toBeVisible();
   });
 
@@ -69,7 +69,7 @@ test.describe("Escalação (RF10/RF11)", () => {
     await inscrever(ev.id, trab.id, "ESCALADO");
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await page.getByRole("button", { name: "Reabrir para reescalar" }).click();
     await expect(page.getByRole("button", { name: "Selecionar todos" })).toBeVisible();
   });

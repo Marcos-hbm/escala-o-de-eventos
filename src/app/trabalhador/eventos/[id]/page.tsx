@@ -6,7 +6,8 @@ import { Card, Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
 import { inscreverEvento, recusarEvento } from "@/server/actions/inscricoes";
-import { formatBRL, formatData } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { MapPin, CalendarDays, Users, Briefcase } from "lucide-react";
 
 export default async function DetalheEvento({ params }: { params: Promise<{ id: string }> }) {
@@ -47,7 +48,7 @@ export default async function DetalheEvento({ params }: { params: Promise<{ id: 
         {evento.descricao && <p className="mt-4 text-sm">{evento.descricao}</p>}
 
         <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
-          <Info icon={<CalendarDays className="h-4 w-4" />} label="Data" valor={`${formatData(evento.dataEvento)}${evento.horaInicio ? ` às ${evento.horaInicio}` : ""}`} />
+          <Info icon={<CalendarDays className="h-4 w-4" />} label="Data" valor={`${formatarDataCivil(evento.dataEvento)}${evento.horaInicio ? ` às ${evento.horaInicio}` : ""}`} />
           {evento.local && <Info icon={<MapPin className="h-4 w-4" />} label="Local" valor={evento.local} />}
           <Info icon={<Users className="h-4 w-4" />} label="Vagas" valor={String(evento.vagas)} />
           <Info icon={<Briefcase className="h-4 w-4" />} label="Funções" valor={evento.funcoes ?? "—"} />

@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Label, Input, FieldError } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
 import { formatCNPJ } from "@/lib/utils";
+import { useActionToast } from "@/components/use-action-toast";
 
 interface EmpresaData {
   nome: string;
@@ -18,6 +19,7 @@ interface EmpresaData {
 
 export function PerfilEmpresaForm({ empresa }: { empresa: EmpresaData }) {
   const [state, formAction] = useActionState(editarPerfilEmpresa, initialActionState);
+  useActionToast(state);
   const fe = state.fieldErrors ?? {};
 
   return (
@@ -60,7 +62,6 @@ export function PerfilEmpresaForm({ empresa }: { empresa: EmpresaData }) {
           <FieldError errors={fe.telefone} />
         </div>
 
-        {state.ok && state.message && <p className="text-sm text-green-600">{state.message}</p>}
         <SubmitButton pendingLabel="Salvando...">Salvar alterações</SubmitButton>
       </form>
     </Card>

@@ -5,7 +5,8 @@ import { reputacoesDeTrabalhadores, presencasDeTrabalhadores } from "@/lib/reput
 import { Card, Badge } from "@/components/ui/card";
 import { StatTile, Bar, Estrelas } from "@/components/ui/stat";
 import { porcentagem } from "@/lib/stats";
-import { formatBRL, formatData } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { CalendarCheck, Wallet, Link2, Star } from "lucide-react";
 
 export const metadata = { title: "Painel — Escala" };
@@ -76,7 +77,7 @@ export default async function DashboardTrabalhador() {
               <div key={i.id} className="flex items-center justify-between rounded-lg border border-surface p-3">
                 <div>
                   <p className="font-medium">{i.evento.nome}</p>
-                  <p className="text-xs text-muted">{i.evento.empresa.nome} · {formatData(i.evento.dataEvento)} · {formatBRL(Number(i.evento.valorCache))}</p>
+                  <p className="text-xs text-muted">{i.evento.empresa.nome} · {formatarDataCivil(i.evento.dataEvento)} · {formatBRL(Number(i.evento.valorCache))}</p>
                 </div>
                 <Badge tone="success">Escalado</Badge>
               </div>

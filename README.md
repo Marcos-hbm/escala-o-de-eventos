@@ -10,6 +10,29 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
 
 ---
 
+## Novidades (v4, fase 1) — padrão brasileiro de data/hora e fundação de UX
+
+- **Data e hora em pt-BR de verdade**: `DD/MM/AAAA` e `HH:mm` (24 h), com fuso de
+  Brasília para carimbos de tempo e UTC para datas civis — a distinção que evita
+  exibir o dia errado. Tudo concentrado em `lib/datetime.ts`, com teste que
+  bloqueia formatação espalhada pelo código.
+- **Exportação CSV em padrão BR**: data `DD/MM/AAAA`, valor com vírgula decimal,
+  separador `;` e BOM — abre no Excel brasileiro sem importação manual.
+- **Tema claro/escuro** com alternância no menu, persistida em cookie e aplicada
+  já no servidor (sem flash de tema errado).
+- **Paginação server-side** nas listagens (eventos, vagas, notificações), com
+  clamp de parâmetros de URL e links acessíveis.
+- **Empty states, skeletons e toasts** acessíveis (região `aria-live`,
+  auto-dismiss pausável, botão de fechar com nome).
+
+Detalhes em [`docs/ADRs 0003 e 0004`](docs/adr/). **Limitação conhecida** nesta
+fase: em parte das execuções, telas cuja ação usa toast podem seguir exibindo o
+estado anterior até uma navegação — o dado no banco está sempre correto. Medições
+e a correção proposta estão no
+[ADR 0004](docs/adr/0004-atualizacao-de-tela-apos-server-action.md).
+
+---
+
 ## Novidades (v3) — modelo SaaS: equipe, papéis e planos
 
 A empresa deixa de ser "um usuário" e passa a ser uma **conta (tenant) com equipe
@@ -141,18 +164,18 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 47 testes unitários (Vitest) — sem banco
+npm test                      # 85 testes unitários (Vitest) — sem banco
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 
-# Suíte E2E completa (77 testes) — precisa da app + PostgreSQL.
+# Suíte E2E completa (86 testes) — precisa da app + PostgreSQL.
 # Mais estável contra o build de produção:
 npm run db:up                 # ou docker compose up -d
 npm run build && npm start &  # servidor de produção em :3000
 E2E_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
-A matriz completa de casos (CT-01…CT-72) está em
+A matriz completa de casos (CT-01…CT-85) está em
 [`docs/CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md). Os testes E2E criam dados
 isolados por teste (CPF/CNPJ válidos gerados), então rodam em paralelo e
 repetidamente sem interferência. Cobrem: cadastro/login (positivos e negativos),

@@ -7,6 +7,7 @@ import { registrarAuditoria } from "@/lib/audit";
 import { notificarEmLote } from "@/lib/notifications";
 import { escalarSchema } from "@/lib/validations";
 import { type ActionState } from "@/lib/actions";
+import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 /**
  * RF10 / RF11 — Escala e finalização.
@@ -99,4 +100,5 @@ export async function reabrirEvento(formData: FormData) {
     entidadeId: eventoId,
   });
   revalidatePath(`/empresa/eventos/${eventoId}/escalar`);
+  await voltarParaOrigem(`/empresa/eventos/${eventoId}/escalar`);
 }

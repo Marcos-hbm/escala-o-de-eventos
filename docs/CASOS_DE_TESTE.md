@@ -134,6 +134,24 @@ a aplicação em execução + PostgreSQL.
 | CT-71 | Limites por plano: cabeMais/pctUso/mensagens (11 asserts) | Unitário | planos.test |
 | CT-72 | Matriz de papéis: escrita por papel e papéis atribuíveis (8 asserts) | Unitário | rbac.test |
 
+## v4 fase 1 — Data/hora BR e fundação de UX
+
+| CT | Descrição | Tipo | Arquivo |
+| --- | --- | --- | --- |
+| CT-73 | Evento exibe data DD/MM/AAAA sem deslocar o dia (data civil) | E2E | ux.spec |
+| CT-74 | Notificação mostra tempo relativo + data/hora completa no title | E2E | ux.spec |
+| CT-75 | CSV exportado em padrão BR (data e cachê com vírgula) | E2E | ux.spec |
+| CT-76 | Tema alterna, persiste em cookie e sobrevive ao reload (sem flash) | E2E | ux.spec |
+| CT-77 | Listagem pagina no banco e navegação preserva filtro | E2E | ux.spec |
+| CT-78 | Empty state de empresa sem eventos oferece criar o primeiro | E2E | ux.spec |
+| CT-79 | Busca sem resultado oferece limpar filtros | E2E | ux.spec |
+| CT-80 | Trabalhador sem vínculo é direcionado a Vínculos | E2E | ux.spec |
+| CT-81 | Toast acessível (aria-live) aparece e pode ser fechado | E2E | ux.spec |
+| CT-82 | Data civil x instante: fuso correto nos dois casos (16 asserts) | Unitário | datetime.test |
+| CT-83 | Guarda: nenhuma formatação de data fora de lib/datetime.ts | Unitário | datetime.test |
+| CT-84 | Paginação: clamp de entrada hostil, metadados e URLs (14 asserts) | Unitário | paginacao.test |
+| CT-85 | Redirecionamento pós-mutação recusa destino externo (open redirect) | Unitário | navegacao.test |
+
 ---
 
 ## Como executar

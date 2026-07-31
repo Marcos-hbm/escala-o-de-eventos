@@ -10,8 +10,7 @@ import {
   vincular,
   definirPlano,
   uid,
-  SENHA,
-} from "./fixtures";
+  SENHA, irPara } from "./fixtures";
 
 /**
  * v3 (SaaS) — multiusuário por empresa (Membro + RBAC) e gating por plano.
@@ -39,7 +38,7 @@ test.describe("v3 — Login por membro e RBAC", () => {
     await loginUI(page, "EMPRESA", coord.email);
     await expect(page.getByRole("link", { name: "Equipe" })).toHaveCount(0);
 
-    await page.goto("/empresa/equipe");
+    await irPara(page, "/empresa/equipe");
     await expect(page).toHaveURL(/\/empresa\/dashboard\?negado=equipe%3Agerenciar/);
     await expect(page.getByTestId("aviso-negado")).toContainText("Coordenador");
   });
@@ -50,10 +49,10 @@ test.describe("v3 — Login por membro e RBAC", () => {
     await novoEvento(emp.id, { nome: `Leitura ${uid()}` });
 
     await loginUI(page, "EMPRESA", leitor.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     await expect(page.getByRole("link", { name: /Novo evento/ })).toHaveCount(0);
 
-    await page.goto("/empresa/eventos/novo");
+    await irPara(page, "/empresa/eventos/novo");
     await expect(page).toHaveURL(/\/empresa\/dashboard\?negado=evento%3Acriar/);
     await expect(page.getByTestId("aviso-negado")).toContainText("não permite");
   });
@@ -67,7 +66,7 @@ test.describe("v3 — Login por membro e RBAC", () => {
     await prisma.inscricao.create({ data: { eventoId: ev.id, userId: trab.id, status: "INSCRITO" } });
 
     await loginUI(page, "EMPRESA", leitor.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await expect(page.getByText("somente leitura")).toBeVisible();
     await expect(page.getByRole("button", { name: /Escalar e finalizar/ })).toHaveCount(0);
   });
@@ -80,7 +79,7 @@ test.describe("v3 — Login por membro e RBAC", () => {
     // Revogação feita fora da sessão (como um ADMIN faria na tela de Equipe).
     await prisma.membro.update({ where: { id: coord.id }, data: { ativo: false } });
 
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     await expect(page).toHaveURL(/\/login\?tipo=EMPRESA&erro=acesso_revogado/);
     await expect(page.getByTestId("acesso-revogado")).toBeVisible();
   });
@@ -92,7 +91,7 @@ test.describe("v3 — Equipe (multiusuário)", () => {
     const email = `novo_${uid()}@e2e.test`;
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/equipe");
+    await irPara(page, "/empresa/equipe");
     await page.getByLabel("Nome *").fill("Coord Criado E2E");
     await page.getByLabel("E-mail *").fill(email);
     await page.getByLabel("Senha provisória *").fill(SENHA);
@@ -109,7 +108,7 @@ test.describe("v3 — Equipe (multiusuário)", () => {
     const coord = await novoMembro(emp.id, "COORDENADOR");
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/equipe");
+    await irPara(page, "/empresa/equipe");
     await page.getByRole("button", { name: `Revogar acesso de ${coord.nome}` }).click();
     await expect(page.getByText(`Acesso de ${coord.nome} revogado.`)).toBeVisible();
 
@@ -123,7 +122,7 @@ test.describe("v3 — Equipe (multiusuário)", () => {
     await novoMembro(emp.id, "COORDENADOR");
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/equipe");
+    await irPara(page, "/empresa/equipe");
     await expect(page.getByText("Cota de usuários esgotada")).toBeVisible();
     await expect(page.getByRole("button", { name: "Adicionar membro" })).toHaveCount(0);
   });
@@ -135,7 +134,7 @@ test.describe("v3 — Gating por plano", () => {
     for (let i = 0; i < 3; i++) await novoEvento(emp.id, { nome: `Cota ${i} ${uid()}` });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     await expect(page.getByText(/Limite do plano Starter atingido/)).toBeVisible();
     await expect(page.getByRole("link", { name: /Novo evento/ })).toHaveCount(0);
   });
@@ -146,7 +145,7 @@ test.describe("v3 — Gating por plano", () => {
     const nome = `Quarto Evento ${uid()}`;
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos/novo");
+    await irPara(page, "/empresa/eventos/novo");
     await page.getByLabel("Nome do evento *").fill(nome);
     await page.getByLabel("Data *").fill("2026-12-01");
     await page.getByLabel("Vagas *").fill("4");
@@ -165,7 +164,7 @@ test.describe("v3 — Gating por plano", () => {
     await prisma.inscricao.create({ data: { eventoId: ev.id, userId: trab.id, status: "INSCRITO" } });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto(`/empresa/eventos/${ev.id}/escalar`);
+    await irPara(page, `/empresa/eventos/${ev.id}/escalar`);
     await expect(page.getByRole("button", { name: /Selecionar sugeridos/ })).toHaveCount(0);
     await expect(page.getByText(/está no plano Professional/)).toBeVisible();
 
@@ -181,7 +180,7 @@ test.describe("v3 — Plano e assinatura", () => {
     await novoEvento(emp.id);
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/plano");
+    await irPara(page, "/empresa/plano");
     await expect(page.getByRole("heading", { name: "Plano", exact: true })).toBeVisible();
     await expect(page.getByText("Starter", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("1 de 3")).toBeVisible(); // eventos ativos
@@ -191,9 +190,14 @@ test.describe("v3 — Plano e assinatura", () => {
     const emp = await novaEmpresa();
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/plano");
+    await irPara(page, "/empresa/plano");
     await page.getByRole("button", { name: "Mudar para Professional" }).click();
-    await expect(page.getByText("Plano alterado para Professional.")).toBeVisible();
+
+    // Asserção no resultado durável (o cartão do plano passa a ser o atual), e não
+    // no toast: se o clique acontecer antes da hidratação, o Next executa a action
+    // pelo caminho nativo do formulário — a troca ocorre, mas o toast, que depende
+    // de efeito no cliente, não é exibido.
+    await expect(page.getByTestId("plano-atual")).toHaveText("Professional");
 
     const ass = await prisma.assinatura.findUnique({ where: { empresaId: emp.id } });
     expect(ass?.plano).toBe("PROFESSIONAL");
@@ -206,7 +210,7 @@ test.describe("v3 — Plano e assinatura", () => {
     for (let i = 0; i < 4; i++) await novoEvento(emp.id, { nome: `Down ${i} ${uid()}` });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/plano");
+    await irPara(page, "/empresa/plano");
     await page.getByRole("button", { name: "Mudar para Starter" }).click();
     await expect(page.getByText(/acima do limite em 4 eventos ativos/)).toBeVisible();
 
@@ -219,7 +223,7 @@ test.describe("v3 — Plano e assinatura", () => {
     const coord = await novoMembro(emp.id, "COORDENADOR");
 
     await loginUI(page, "EMPRESA", coord.email);
-    await page.goto("/empresa/plano");
+    await irPara(page, "/empresa/plano");
     await expect(page.getByText("Somente o Proprietário da conta altera o plano.")).toBeVisible();
     await expect(page.getByRole("button", { name: /Mudar para/ })).toHaveCount(0);
   });

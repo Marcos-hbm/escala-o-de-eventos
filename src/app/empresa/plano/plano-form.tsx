@@ -5,6 +5,7 @@ import { trocarPlano } from "@/server/actions/plano";
 import { initialActionState } from "@/lib/actions";
 import { SubmitButton } from "@/components/submit-button";
 import { rotuloPlano, type PlanoId } from "@/lib/planos";
+import { useActionToast } from "@/components/use-action-toast";
 
 /**
  * Troca de plano (sem cobrança — ver `server/actions/plano.ts`). Só é renderizado
@@ -12,6 +13,7 @@ import { rotuloPlano, type PlanoId } from "@/lib/planos";
  */
 export function TrocarPlanoForm({ destino, atual }: { destino: PlanoId; atual: PlanoId }) {
   const [state, formAction] = useActionState(trocarPlano, initialActionState);
+  useActionToast(state);
   const ehAtual = destino === atual;
 
   return (
@@ -25,9 +27,6 @@ export function TrocarPlanoForm({ destino, atual }: { destino: PlanoId; atual: P
       >
         {ehAtual ? "Plano atual" : `Mudar para ${rotuloPlano(destino)}`}
       </SubmitButton>
-      {state.message && (
-        <p className={`mt-2 text-sm ${state.ok ? "text-green-600" : "text-red-600"}`}>{state.message}</p>
-      )}
     </form>
   );
 }

@@ -7,6 +7,7 @@ import { Card, Badge } from "@/components/ui/card";
 import { Label, Input, Select, FieldError } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
 import { rotuloPapel, type PapelId } from "@/lib/rbac";
+import { useActionToast } from "@/components/use-action-toast";
 
 export interface MembroView {
   id: number;
@@ -17,14 +18,10 @@ export interface MembroView {
   souEu: boolean;
 }
 
-function Mensagem({ ok, texto }: { ok: boolean; texto?: string }) {
-  if (!texto) return null;
-  return <p className={`mt-2 text-sm ${ok ? "text-green-600" : "text-red-600"}`}>{texto}</p>;
-}
-
 /** Formulário de convite (criação) de membro. */
 export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
   const [state, formAction] = useActionState(criarMembro, initialActionState);
+  useActionToast(state);
   const fe = state.fieldErrors ?? {};
 
   return (
@@ -58,7 +55,6 @@ export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
           </div>
         </div>
         <SubmitButton pendingLabel="Adicionando...">Adicionar membro</SubmitButton>
-        <Mensagem ok={state.ok} texto={state.message} />
       </form>
     </Card>
   );
@@ -68,6 +64,8 @@ export function NovoMembroForm({ papeis }: { papeis: PapelId[] }) {
 export function MembroLinha({ membro, papeis }: { membro: MembroView; papeis: PapelId[] }) {
   const [statePapel, acaoPapel] = useActionState(alterarPapel, initialActionState);
   const [stateAtivo, acaoAtivo] = useActionState(alternarMembroAtivo, initialActionState);
+  useActionToast(statePapel);
+  useActionToast(stateAtivo);
 
   return (
     <Card className="space-y-2">
@@ -113,8 +111,6 @@ export function MembroLinha({ membro, papeis }: { membro: MembroView; papeis: Pa
         )}
       </div>
 
-      <Mensagem ok={statePapel.ok} texto={statePapel.message} />
-      <Mensagem ok={stateAtivo.ok} texto={stateAtivo.message} />
     </Card>
   );
 }

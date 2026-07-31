@@ -13,7 +13,7 @@ import { reputacoesDeTrabalhadores, presencasDeTrabalhadores, conflitosDeAgenda 
 import { scorePrioridade } from "@/lib/stats";
 import { EscalarForm, type Candidato } from "./escalar-form";
 import { AvaliarTrabalhador } from "./avaliar-trabalhador";
-import { formatData } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { Download, CheckCircle2, XCircle } from "lucide-react";
 
 export const metadata = { title: "Escalar — Escala" };
@@ -87,7 +87,7 @@ export default async function EscalarPage({ params }: { params: Promise<{ id: st
         <h1 className="text-2xl font-bold">Escalar — {evento.nome}</h1>
         <Badge tone={finalizado ? "neutral" : "success"}>{evento.status}</Badge>
       </div>
-      <p className="mb-6 text-sm text-muted">{formatData(evento.dataEvento)} · {candidatos.length} candidato(s)</p>
+      <p className="mb-6 text-sm text-muted">{formatarDataCivil(evento.dataEvento)} · {candidatos.length} candidato(s)</p>
 
       {candidatos.length === 0 ? (
         <Card className="text-sm text-muted">Nenhum trabalhador se inscreveu neste evento ainda.</Card>

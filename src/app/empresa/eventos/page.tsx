@@ -7,8 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
 import { SubmitButton } from "@/components/submit-button";
 import { excluirEvento } from "@/server/actions/eventos";
-import { formatBRL, formatData } from "@/lib/utils";
-import { Plus, Pencil, ListChecks, Trash2, Search } from "lucide-react";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
+import { lerParametrosPagina, montarPagina } from "@/lib/paginacao";
+import { Paginacao } from "@/components/ui/paginacao";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Plus, Pencil, ListChecks, Trash2, Search, CalendarDays } from "lucide-react";
 import type { Prisma, StatusEvento } from "@prisma/client";
 
 export const metadata = { title: "Meus eventos — Escala" };
@@ -24,10 +28,11 @@ const statusTone: Record<StatusEvento, "success" | "info" | "neutral" | "danger"
 export default async function MeusEventos({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; data?: string }>;
+  searchParams: Promise<{ q?: string; data?: string; pagina?: string; tamanho?: string }>;
 }) {
   const s = await requireEmpresa();
-  const { q, data } = await searchParams;
+  const { q, data, pagina, tamanho } = await searchParams;
+  const params = lerParametrosPagina({ pagina, tamanho });
 
   // v3 — RBAC do membro + cota de eventos ativos do plano.
   const podeCriar = sessaoPode(s, "evento:criar");
@@ -35,14 +40,17 @@ export default async function MeusEventos({
   const podeExcluir = sessaoPode(s, "evento:excluir");
   const limiteAtingido = podeCriar ? await erroDeLimite(s.sub, "maxEventosAtivos") : null;
 
-  const where: Prisma.EventoWhereInput = { empresaId: s.sub };
-  if (q) where.nome = { contains: q, mode: "insensitive" };
-  if (data) where.dataEvento = new Date(data);
-
-  const eventos = await prisma.evento.findMany({
-    where,
-    include: { _count: { select: { inscricoes: true } } },
-    orderBy: { dataEvento: "desc" },
+  const filtrado = Boolean(q || data);
+  const listaEventos = await listaDeEventos({
+    empresaId: s.sub,
+    q,
+    data,
+    params,
+    filtrado,
+    podeEditar,
+    podeExcluir,
+    podeCriar,
+    limiteAtingido,
   });
 
   return (
@@ -76,8 +84,80 @@ export default async function MeusEventos({
         </form>
       </Card>
 
+      {listaEventos}
+    </div>
+  );
+}
+
+/**
+ * Consulta + lista, renderizadas no corpo da página (sem `<Suspense>`).
+ *
+ * Tentamos streaming aqui (Suspense com skeleton) e a lista **deixava de refletir
+ * mutações**: após `excluirEvento` + `revalidatePath`, o registro saía do banco e a
+ * tela continuava mostrando o evento (medido: 5 de 6 execuções). Correção acima de
+ * enfeite — a consulta volta para o corpo da página, que revalida corretamente.
+ * O `loading.tsx` de segmento também não serve nesta rota: envolveria
+ * `/empresa/eventos/[id]/*` e o shell 200 sairia antes do `notFound()`, quebrando
+ * o 404 de IDOR.
+ */
+async function listaDeEventos({
+  empresaId,
+  q,
+  data,
+  params,
+  filtrado,
+  podeEditar,
+  podeExcluir,
+  podeCriar,
+  limiteAtingido,
+}: {
+  empresaId: number;
+  q?: string;
+  data?: string;
+  params: ReturnType<typeof lerParametrosPagina>;
+  filtrado: boolean;
+  podeEditar: boolean;
+  podeExcluir: boolean;
+  podeCriar: boolean;
+  limiteAtingido: string | null;
+}) {
+  const where: Prisma.EventoWhereInput = { empresaId };
+  if (q) where.nome = { contains: q, mode: "insensitive" };
+  if (data) where.dataEvento = new Date(data);
+
+  // Paginação no banco: sem `take`, uma empresa com milhares de eventos
+  // carregaria tudo em memória a cada acesso.
+  const [itens, total] = await Promise.all([
+    prisma.evento.findMany({
+      where,
+      include: { _count: { select: { inscricoes: true } } },
+      orderBy: { dataEvento: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.evento.count({ where }),
+  ]);
+  const paginaEventos = montarPagina(itens, total, params);
+  const eventos = paginaEventos.itens;
+
+  return (
+    <>
       {eventos.length === 0 ? (
-        <Card className="text-center text-sm text-muted">Nenhum evento. Crie o primeiro em “Novo evento”.</Card>
+        filtrado ? (
+          <EmptyState
+            icone={<Search className="h-6 w-6" />}
+            titulo="Nenhum evento encontrado com esses filtros"
+            descricao="Ajuste o nome ou a data da busca para ver outros eventos."
+            acao={{ href: "/empresa/eventos", rotulo: "Limpar filtros" }}
+          />
+        ) : (
+          <EmptyState
+            icone={<CalendarDays className="h-6 w-6" />}
+            titulo="Você ainda não criou eventos"
+            descricao="Publique um evento para que os trabalhadores vinculados possam se candidatar."
+            acao={podeCriar && !limiteAtingido ? { href: "/empresa/eventos/novo", rotulo: "Criar primeiro evento" } : undefined}
+          />
+        )
       ) : (
         <div className="space-y-3">
           {eventos.map((e) => (
@@ -88,7 +168,7 @@ export default async function MeusEventos({
                   <Badge tone={statusTone[e.status]}>{e.status}</Badge>
                 </div>
                 <p className="text-xs text-muted">
-                  {formatData(e.dataEvento)} · {e.vagas} vaga(s) · {formatBRL(Number(e.valorCache))} · {e._count.inscricoes} inscrito(s)
+                  {formatarDataCivil(e.dataEvento)} · {e.vagas} vaga(s) · {formatBRL(Number(e.valorCache))} · {e._count.inscricoes} inscrito(s)
                 </p>
               </div>
               <div className="flex gap-2">
@@ -113,6 +193,13 @@ export default async function MeusEventos({
           ))}
         </div>
       )}
-    </div>
+
+      <Paginacao
+        pagina={paginaEventos}
+        base="/empresa/eventos"
+        filtros={{ q, data }}
+        singular="evento"
+      />
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { test, expect, loginUI, novaEmpresa, novoEvento, uid } from "./fixtures";
+import { test, expect, loginUI, novaEmpresa, novoEvento, uid, irPara } from "./fixtures";
 
 /** RF05 — CRUD de eventos + filtro. */
 
@@ -26,7 +26,7 @@ test.describe("Eventos (RF05)", () => {
     const novoNome = `Editado ${uid()}`;
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     const card = page.locator("div.rounded-xl").filter({ hasText: ev.nome }).first();
     await card.getByRole("link", { name: /Editar/ }).click();
 
@@ -40,7 +40,7 @@ test.describe("Eventos (RF05)", () => {
     const ev = await novoEvento(emp.id, { nome: `Excluir ${uid()}` });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     await page.getByRole("button", { name: `Excluir ${ev.nome}` }).click();
     await expect(page.getByRole("heading", { name: ev.nome })).toHaveCount(0);
   });
@@ -52,7 +52,7 @@ test.describe("Eventos (RF05)", () => {
     await novoEvento(emp.id, { nome: `Outro ${uid()}` });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     await page.getByPlaceholder("Buscar por nome").fill(alvo);
     await page.getByRole("button", { name: "Filtrar" }).click();
     await expect(page.getByRole("heading", { name: alvo })).toBeVisible();
@@ -63,7 +63,7 @@ test.describe("Eventos (RF05)", () => {
     const emp = await novaEmpresa();
     const ev = await novoEvento(emp.id, { nome: `Pub ${uid()}` });
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/eventos");
+    await irPara(page, "/empresa/eventos");
     const card = page.locator("div.rounded-xl").filter({ hasText: ev.nome }).first();
     await expect(card.getByText("PUBLICADO")).toBeVisible();
   });

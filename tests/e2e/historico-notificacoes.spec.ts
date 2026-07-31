@@ -1,4 +1,4 @@
-import { test, expect, loginUI, prisma, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid } from "./fixtures";
+import { test, expect, loginUI, prisma, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid, irPara } from "./fixtures";
 
 /** RF12 (histórico) e RF15 (notificações internas). */
 
@@ -11,7 +11,7 @@ test.describe("Histórico e notificações", () => {
     await inscrever(ev.id, trab.id, "ESCALADO");
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/historico");
+    await irPara(page, "/trabalhador/historico");
     const linha = page.locator("div.rounded-xl").filter({ hasText: ev.nome }).first();
     await expect(linha).toBeVisible();
     await expect(linha.getByText("Escalado")).toBeVisible();
@@ -35,7 +35,7 @@ test.describe("Histórico e notificações", () => {
 
     // Trabalhador vê a notificação
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/notificacoes");
+    await irPara(page, "/trabalhador/notificacoes");
     await expect(page.getByText("Nova oportunidade de trabalho")).toBeVisible();
   });
 
@@ -47,7 +47,7 @@ test.describe("Histórico e notificações", () => {
     });
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/notificacoes");
+    await irPara(page, "/trabalhador/notificacoes");
     await expect(page.getByText("1 não lida(s)")).toBeVisible();
     await page.getByRole("button", { name: "Marcar todas como lidas" }).click();
     await expect(page.getByText("0 não lida(s)")).toBeVisible();

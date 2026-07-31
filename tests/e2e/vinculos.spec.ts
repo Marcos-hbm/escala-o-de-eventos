@@ -1,4 +1,4 @@
-import { test, expect, loginUI, novaEmpresa, novoTrabalhador, vincular, uid } from "./fixtures";
+import { test, expect, loginUI, novaEmpresa, novoTrabalhador, vincular, uid, irPara } from "./fixtures";
 
 /** RF06/RF07 — Vínculos (convite, solicitação, aceite, recusa, desvínculo, favorito). */
 
@@ -11,7 +11,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
 
     // Trabalhador busca e solicita
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/vinculos");
+    await irPara(page, "/trabalhador/vinculos");
     await page.getByPlaceholder("Digite o início do nome da empresa").fill(nomeEmp);
     await page.getByRole("button", { name: "Buscar" }).click();
     await page.getByRole("button", { name: "Solicitar vínculo" }).click();
@@ -19,7 +19,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
 
     // Empresa aceita
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/vinculos");
+    await irPara(page, "/empresa/vinculos");
     const pedido = page.locator("div.rounded-xl").filter({ hasText: nomeTrab }).first();
     await pedido.getByRole("button", { name: "Aceitar" }).click();
     const ativo = page.locator("div.rounded-xl").filter({ hasText: nomeTrab });
@@ -33,14 +33,14 @@ test.describe("Vínculos (RF06/RF07)", () => {
     const trab = await novoTrabalhador({ nome: nomeTrab });
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/vinculos");
+    await irPara(page, "/empresa/vinculos");
     await page.getByPlaceholder("Início do nome do trabalhador").fill(nomeTrab);
     await page.getByRole("button", { name: "Buscar" }).click();
     await page.getByRole("button", { name: "Convidar" }).click();
     await expect(page.getByText("Aguardando resposta")).toBeVisible();
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/vinculos");
+    await irPara(page, "/trabalhador/vinculos");
     const convite = page.locator("div.rounded-xl").filter({ hasText: nomeEmp }).first();
     await convite.getByRole("button", { name: "Aceitar" }).click();
     await expect(page.getByRole("heading", { name: "Vínculos ativos" })).toBeVisible();
@@ -53,7 +53,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
     await vincular(trab.id, emp.id, "PENDENTE", "TRABALHADOR");
 
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/vinculos");
+    await irPara(page, "/empresa/vinculos");
     const pedido = page.locator("div.rounded-xl").filter({ hasText: trab.nome }).first();
     await pedido.getByRole("button", { name: "Recusar" }).click();
     // Some da lista de pendentes
@@ -66,7 +66,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
     await vincular(trab.id, emp.id, "ATIVO");
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/vinculos");
+    await irPara(page, "/trabalhador/vinculos");
     const card = page.locator("div.rounded-xl").filter({ hasText: emp.nome }).first();
     await card.getByRole("button", { name: "Favoritar" }).click();
     await expect(page.locator("div.rounded-xl").filter({ hasText: emp.nome }).getByRole("button", { name: "Desfavoritar" })).toBeVisible();
@@ -78,7 +78,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
     await vincular(trab.id, emp.id, "ATIVO");
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/vinculos");
+    await irPara(page, "/trabalhador/vinculos");
     const card = page.locator("div.rounded-xl").filter({ hasText: emp.nome }).first();
     await card.getByRole("button", { name: "Desvincular" }).click();
     await expect(page.locator("div.rounded-xl").filter({ hasText: emp.nome })).toHaveCount(0);
@@ -87,7 +87,7 @@ test.describe("Vínculos (RF06/RF07)", () => {
   test("busca sem correspondência informa 'nenhuma empresa encontrada'", async ({ page }) => {
     const trab = await novoTrabalhador();
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/vinculos");
+    await irPara(page, "/trabalhador/vinculos");
     await page.getByPlaceholder("Digite o início do nome da empresa").fill(`inexistente-${uid()}`);
     await page.getByRole("button", { name: "Buscar" }).click();
     await expect(page.getByText("Nenhuma empresa encontrada.")).toBeVisible();

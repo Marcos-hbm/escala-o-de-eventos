@@ -17,8 +17,25 @@
   --muted: #64748b;
 }
 
+/* O `dark:` do Tailwind v4 segue apenas `prefers-color-scheme`. Como agora existe
+   escolha explícita (cookie → data-theme no <html>), o variant é redefinido para
+   valer nos DOIS casos: preferência do SO (desde que o usuário não tenha pedido
+   claro) OU data-theme="dark". Sem isso, quem está num SO claro e escolhe
+   "escuro" recebe as variáveis escuras com as cores `dark:*` claras — visual
+   quebrado pela metade. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where(:root[data-theme="dark"] *) {
+    @slot;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0b1120;
     --fg: #e2e8f0;
     --card: #111827;
@@ -27,8 +44,33 @@
   }
 }
 
+/* Escolha explícita do usuário (cookie escala_tema) vence o preferido do SO. */
+:root[data-theme="dark"] {
+  --bg: #0b1120;
+  --fg: #e2e8f0;
+  --card: #111827;
+  --border: #1f2937;
+  --muted: #94a3b8;
+}
+
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --fg: #0f172a;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+}
+
 html {
   color-scheme: light dark;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {

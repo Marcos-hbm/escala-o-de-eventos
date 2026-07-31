@@ -4,21 +4,38 @@ import { prisma } from "@/lib/prisma";
 import { Card } from "@/components/ui/card";
 import { SubmitButton } from "@/components/submit-button";
 import { marcarNotificacaoLida, marcarTodasLidas } from "@/server/actions/perfil";
-import { formatData } from "@/lib/utils";
+import { formatarDataHora, formatarRelativo } from "@/lib/datetime";
+import { lerParametrosPagina, montarPagina } from "@/lib/paginacao";
+import { Paginacao } from "@/components/ui/paginacao";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
+import { Bell } from "lucide-react";
 
 export const metadata = { title: "Notificações — Escala" };
 
-export default async function Notificacoes() {
+export default async function Notificacoes({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string; tamanho?: string }>;
+}) {
   const s = await requireTrabalhador();
+  const { pagina, tamanho } = await searchParams;
+  const params = lerParametrosPagina({ pagina, tamanho });
 
-  // RF15 — notificações internas.
-  const notificacoes = await prisma.notificacao.findMany({
-    where: { userId: s.sub },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-  const naoLidas = notificacoes.filter((n) => !n.lida).length;
+  // RF15 — notificações internas. A contagem de não lidas é feita no banco (e
+  // não sobre a página atual, que mostra só uma fatia).
+  const [itens, total, naoLidas] = await Promise.all([
+    prisma.notificacao.findMany({
+      where: { userId: s.sub },
+      orderBy: { createdAt: "desc" },
+      skip: params.skip,
+      take: params.take,
+    }),
+    prisma.notificacao.count({ where: { userId: s.sub } }),
+    prisma.notificacao.count({ where: { userId: s.sub, lida: false } }),
+  ]);
+  const paginaNotif = montarPagina(itens, total, params);
+  const notificacoes = paginaNotif.itens;
 
   return (
     <div>
@@ -35,7 +52,11 @@ export default async function Notificacoes() {
       </div>
 
       {notificacoes.length === 0 ? (
-        <Card className="text-sm text-muted">Nenhuma notificação.</Card>
+        <EmptyState
+          icone={<Bell className="h-6 w-6" />}
+          titulo="Nenhuma notificação por aqui"
+          descricao="Você é avisado quando uma empresa te convidar, publicar um evento novo ou te escalar."
+        />
       ) : (
         <div className="space-y-2">
           {notificacoes.map((n) => (
@@ -43,7 +64,9 @@ export default async function Notificacoes() {
               <div>
                 <p className="font-medium">{n.titulo}</p>
                 <p className="text-sm text-muted">{n.mensagem}</p>
-                <p className="mt-1 text-xs text-muted">{formatData(n.createdAt)}</p>
+                <p className="mt-1 text-xs text-muted" title={formatarDataHora(n.createdAt)}>
+                  {formatarRelativo(n.createdAt)}
+                </p>
                 {n.link && (
                   <Link href={n.link} className="text-xs text-brand-600 hover:underline">Abrir</Link>
                 )}
@@ -57,6 +80,16 @@ export default async function Notificacoes() {
             </Card>
           ))}
         </div>
+      )}
+
+      {notificacoes.length > 0 && (
+        <Paginacao
+          pagina={paginaNotif}
+          base="/trabalhador/notificacoes"
+          filtros={{}}
+          singular="notificação"
+          plural="notificações"
+        />
       )}
     </div>
   );

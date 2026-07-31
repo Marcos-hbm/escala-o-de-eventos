@@ -13,7 +13,8 @@ import { Card, Badge } from "@/components/ui/card";
 import { Bar, StatTile } from "@/components/ui/stat";
 import { AvisoNegado } from "@/components/aviso-negado";
 import { TrocarPlanoForm } from "./plano-form";
-import { formatBRL, formatData } from "@/lib/utils";
+import { formatBRL } from "@/lib/utils";
+import { formatarDataCivil } from "@/lib/datetime";
 import { CreditCard, CalendarClock, Check, Minus } from "lucide-react";
 
 export const metadata = { title: "Plano — Escala" };
@@ -60,7 +61,7 @@ export default async function PlanoPage({
       <div className="grid gap-3 sm:grid-cols-3">
         <StatTile
           label="Plano atual"
-          value={rotuloPlano(assinatura.plano)}
+          value={<span data-testid="plano-atual">{rotuloPlano(assinatura.plano)}</span>}
           hint={def.precoMensal === null ? "sob consulta" : `${formatBRL(def.precoMensal)}/mês`}
           icon={<CreditCard className="h-5 w-5" />}
         />
@@ -71,7 +72,7 @@ export default async function PlanoPage({
         />
         <StatTile
           label="Trial termina em"
-          value={assinatura.trialTerminaEm ? formatData(assinatura.trialTerminaEm) : "—"}
+          value={assinatura.trialTerminaEm ? formatarDataCivil(assinatura.trialTerminaEm) : "—"}
           hint={assinatura.trialTerminaEm ? "após essa data, escolha um plano" : "sem trial em andamento"}
           icon={<CalendarClock className="h-5 w-5" />}
         />

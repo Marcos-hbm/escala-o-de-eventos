@@ -42,7 +42,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     status: i.status,
   }));
 
-  const csv = gerarCsvEscala(evento, linhas);
+  // `valorCache` é Decimal do Prisma: converte aqui para o gerador de CSV
+  // permanecer puro (sem conhecer tipos do banco).
+  const csv = gerarCsvEscala(
+    {
+      nome: evento.nome,
+      dataEvento: evento.dataEvento,
+      local: evento.local,
+      horaInicio: evento.horaInicio,
+      valorCache: Number(evento.valorCache),
+    },
+    linhas,
+  );
 
   await registrarAuditoria({
     atorTipo: "EMPRESA",

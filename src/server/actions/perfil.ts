@@ -11,6 +11,7 @@ import { anonimizarTrabalhador, anonimizarEmpresa } from "@/lib/lgpd";
 import { pode } from "@/lib/rbac";
 import { perfilTrabalhadorSchema, perfilEmpresaSchema } from "@/lib/validations";
 import { type ActionState, zodToFieldErrors } from "@/lib/actions";
+import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 // --------------------------------------------------------------------------
 // RF04 — Editar perfil do trabalhador (inclui foto)
@@ -122,10 +123,12 @@ export async function marcarNotificacaoLida(formData: FormData) {
   const id = Number(formData.get("id"));
   await prisma.notificacao.updateMany({ where: { id, userId: s.sub }, data: { lida: true } });
   revalidatePath("/trabalhador/notificacoes");
+  await voltarParaOrigem("/trabalhador/notificacoes");
 }
 
 export async function marcarTodasLidas() {
   const s = await requireTrabalhador();
   await prisma.notificacao.updateMany({ where: { userId: s.sub, lida: false }, data: { lida: true } });
   revalidatePath("/trabalhador/notificacoes");
+  await voltarParaOrigem("/trabalhador/notificacoes");
 }

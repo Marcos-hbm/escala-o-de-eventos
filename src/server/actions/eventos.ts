@@ -9,6 +9,7 @@ import { registrarAuditoria } from "@/lib/audit";
 import { notificarEmLote } from "@/lib/notifications";
 import { eventoSchema } from "@/lib/validations";
 import { type ActionState, zodToFieldErrors } from "@/lib/actions";
+import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 function lerEvento(formData: FormData) {
   return eventoSchema.safeParse({
@@ -171,4 +172,5 @@ export async function excluirEvento(formData: FormData) {
     detalhe: evento.nome,
   });
   revalidatePath("/empresa/eventos");
+  await voltarParaOrigem("/empresa/eventos");
 }

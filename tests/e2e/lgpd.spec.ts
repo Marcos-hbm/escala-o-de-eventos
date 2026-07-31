@@ -1,4 +1,4 @@
-import { test, expect, loginUI, novaEmpresa, novoTrabalhador } from "./fixtures";
+import { test, expect, loginUI, novaEmpresa, novoTrabalhador, irPara } from "./fixtures";
 
 /** LGPD (Lei 13.709/2018) — acesso/portabilidade, eliminação, consentimento. */
 
@@ -21,7 +21,7 @@ test.describe("LGPD", () => {
   test("excluir conta anonimiza e impede novo login (Art. 18 VI)", async ({ page }) => {
     const emp = await novaEmpresa();
     await loginUI(page, "EMPRESA", emp.email);
-    await page.goto("/empresa/perfil");
+    await irPara(page, "/empresa/perfil");
     await page.getByRole("button", { name: "Excluir minha conta" }).click();
     await page.getByRole("button", { name: "Confirmar exclusão" }).click();
     await expect(page).toHaveURL(/conta=excluida/);
@@ -32,7 +32,7 @@ test.describe("LGPD", () => {
   });
 
   test("política de privacidade é pública e cita a LGPD e o DPO", async ({ page }) => {
-    await page.goto("/privacidade");
+    await irPara(page, "/privacidade");
     await expect(page.getByText("13.709/2018")).toBeVisible();
     await expect(page.getByRole("heading", { name: /Encarregado/ })).toBeVisible();
   });

@@ -7,6 +7,7 @@ import { erroDeLimite } from "@/lib/assinatura";
 import { getSession } from "@/lib/session";
 import { registrarAuditoria } from "@/lib/audit";
 import { notificar } from "@/lib/notifications";
+import { voltarParaOrigem } from "@/server/actions/navegacao";
 
 // --------------------------------------------------------------------------
 // RF06 — Trabalhador solicita vínculo a uma empresa
@@ -146,6 +147,7 @@ export async function responderVinculo(formData: FormData) {
 
   revalidatePath("/trabalhador/vinculos");
   revalidatePath("/empresa/vinculos");
+  await voltarParaOrigem(ehTrabalhador ? "/trabalhador/vinculos" : "/empresa/vinculos");
 }
 
 // --------------------------------------------------------------------------
@@ -174,6 +176,7 @@ export async function desvincular(formData: FormData) {
   });
   revalidatePath("/trabalhador/vinculos");
   revalidatePath("/empresa/vinculos");
+  await voltarParaOrigem(sessao.tipo === "TRABALHADOR" ? "/trabalhador/vinculos" : "/empresa/vinculos");
 }
 
 // --------------------------------------------------------------------------
@@ -186,4 +189,5 @@ export async function alternarFavorito(formData: FormData) {
   if (!vinculo || vinculo.userId !== s.sub) return;
   await prisma.vinculo.update({ where: { id: vinculoId }, data: { favorito: !vinculo.favorito } });
   revalidatePath("/trabalhador/vinculos");
+  await voltarParaOrigem("/trabalhador/vinculos");
 }

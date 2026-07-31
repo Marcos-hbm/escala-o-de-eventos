@@ -1,7 +1,12 @@
 /**
  * Geração de CSV da lista de escalados (RF11 / tela Escalar).
  * Puro (sem dependências de servidor) para permitir teste unitário.
+ *
+ * Padrão brasileiro: separador `;` (Excel pt-BR), BOM UTF-8 para acentuação,
+ * datas `DD/MM/AAAA` e valores com vírgula decimal — planilha aberta no Brasil
+ * não deve exigir "importar dados" nem mostrar 2026-08-15.
  */
+import { formatarDataCivil } from "./datetime";
 
 export interface LinhaEscala {
   nome: string;
@@ -10,6 +15,13 @@ export interface LinhaEscala {
   email: string;
   funcao?: string;
   status: string;
+}
+
+/** Número em padrão pt-BR para planilha: 1234.5 -> "1.234,50". */
+export function formatarNumeroBR(valor: number | string): string {
+  const n = typeof valor === "string" ? Number(valor) : valor;
+  if (!Number.isFinite(n)) return "";
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /** Escapa um campo conforme RFC 4180 (aspas, vírgulas, quebras de linha). */
@@ -26,18 +38,26 @@ export function escapeCsvField(value: string): string {
  * prefixa BOM UTF-8 para acentuação correta no Excel.
  */
 export function gerarCsvEscala(
-  evento: { nome: string; dataEvento: Date | string; local?: string | null },
+  evento: {
+    nome: string;
+    dataEvento: Date | string;
+    local?: string | null;
+    horaInicio?: string | null;
+    valorCache?: number | string | null;
+  },
   linhas: LinhaEscala[],
 ): string {
   const sep = ";";
   const cabecalhoEvento = [
     `Evento${sep}${escapeCsvField(evento.nome)}`,
-    `Data${sep}${escapeCsvField(
-      typeof evento.dataEvento === "string"
-        ? evento.dataEvento
-        : evento.dataEvento.toISOString().slice(0, 10),
-    )}`,
+    `Data${sep}${escapeCsvField(formatarDataCivil(evento.dataEvento))}`,
+    `Hora de início${sep}${escapeCsvField(evento.horaInicio || "-")}`,
     `Local${sep}${escapeCsvField(evento.local ?? "-")}`,
+    `Cachê (R$)${sep}${escapeCsvField(
+      evento.valorCache === null || evento.valorCache === undefined
+        ? "-"
+        : formatarNumeroBR(evento.valorCache),
+    )}`,
     "",
   ];
 

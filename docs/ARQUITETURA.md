@@ -12,6 +12,7 @@ Navegador ──HTTP──> Next.js (Server Components + Server Actions)
                         │
                         ├── lib/session (JWT em cookie httpOnly)  ← RBAC
                         ├── lib/auth (bcrypt, verificação por tipo/membro)
+                        ├── lib/datetime + lib/paginacao (formatação e paginação, puros)
                         ├── lib/rbac + lib/planos (regras puras: papéis, limites)
                         ├── lib/assinatura (plano + uso do tenant)
                         ├── server/actions/* (regras de negócio)
@@ -63,6 +64,27 @@ Restrições relevantes:
 - **Vínculo:** `PENDENTE → ATIVO | RECUSADO`; `ATIVO → DESVINCULADO`.
 - **Evento:** `PUBLICADO → FINALIZADO` (reabrível); `→ CANCELADO`.
 - **Inscrição:** `INSCRITO → ESCALADO | RECUSADO_EMPRESA | CANCELADO_TRABALHADOR`.
+
+## Apresentação (v4 fase 1)
+
+- **Data e hora**: tudo passa por `lib/datetime.ts`, que separa data civil
+  (`@db.Date`, formatada em UTC) de instante (timestamp, formatado em
+  `America/Sao_Paulo`). Ver [ADR 0003](adr/0003-data-e-hora-no-padrao-brasileiro.md).
+- **Paginação**: `lib/paginacao.ts` (puro) + `components/ui/paginacao.tsx` (links
+  reais, com `aria-current`). As listagens consultam com `skip`/`take` e contam no
+  banco — nenhuma tela carrega a tabela inteira.
+- **Tema**: preferência em cookie (`escala_tema`) lida no layout raiz, então o
+  primeiro paint já sai no tema escolhido; o variant `dark:` do Tailwind foi
+  redefinido para valer tanto para `prefers-color-scheme` quanto para a escolha
+  explícita.
+- **Feedback**: `components/ui/toast.tsx` (região `aria-live`, auto-dismiss
+  pausável) para resultado de operação; erros de campo permanecem inline. Estados
+  vazios em `components/ui/empty-state.tsx` e skeletons em
+  `components/ui/skeleton.tsx` (via `loading.tsx` das rotas que não podem 404).
+- **Atualização após mutação**: ações sem `ActionState` redirecionam de volta à
+  origem em vez de confiar apenas em `revalidatePath` — motivo, medições e
+  limitação remanescente em
+  [ADR 0004](adr/0004-atualizacao-de-tela-apos-server-action.md).
 
 ## Regras de negócio centrais
 

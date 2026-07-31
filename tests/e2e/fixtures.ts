@@ -24,10 +24,15 @@ export const prisma = new PrismaClient({ datasources: { db: { url: DATABASE_URL 
 // ----------------------------------------------------------------------------
 
 let contador = 0;
-/** Sufixo único e estável dentro da execução. */
+/**
+ * Sufixo único. Inclui o PID porque o Playwright roda vários workers em processos
+ * separados: só `Date.now()` + contador colidia quando dois workers começavam no
+ * mesmo milissegundo, gerando e-mail duplicado (membros.email é único) e falha
+ * intermitente que parecia bug de produto.
+ */
 export function uid(): string {
   contador += 1;
-  return `${Date.now().toString(36)}${contador.toString(36)}`;
+  return `${Date.now().toString(36)}${process.pid.toString(36)}${contador.toString(36)}`;
 }
 
 function randomDigits(n: number): string {
@@ -190,6 +195,22 @@ export async function inscrever(
 // Helpers de UI
 // ----------------------------------------------------------------------------
 
+/**
+ * Espera a app ficar interativa (React hidratado). Clicar antes disso é uma
+ * corrida: o evento pode não ser tratado nem pelo submit nativo nem pelo React,
+ * a server action roda mas a tela não reflete — falha intermitente que parece bug
+ * de produto e não é.
+ */
+export async function aguardarHidratacao(page: Page) {
+  await page.locator('[data-hidratado="true"]').first().waitFor({ state: "attached", timeout: 15000 });
+}
+
+/** `goto` + espera de interatividade. Use sempre que a próxima ação for um clique. */
+export async function irPara(page: Page, url: string) {
+  await page.goto(url);
+  await aguardarHidratacao(page);
+}
+
 export async function loginUI(
   page: Page,
   tipo: "TRABALHADOR" | "EMPRESA",
@@ -207,6 +228,7 @@ export async function loginUI(
   // (evita corrida em que o cookie ainda não foi setado).
   if (esperarEntrar) {
     await page.waitForURL(/\/(empresa|trabalhador)\//, { timeout: 15000 });
+    await aguardarHidratacao(page);
   }
 }
 

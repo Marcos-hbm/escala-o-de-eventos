@@ -1,4 +1,4 @@
-import { test, expect, loginUI, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid } from "./fixtures";
+import { test, expect, loginUI, novaEmpresa, novoTrabalhador, novoEvento, vincular, inscrever, uid, irPara } from "./fixtures";
 
 /** RF09/RF13/RF14 — Inscrição, bloqueio por vínculo e status. */
 
@@ -10,7 +10,7 @@ test.describe("Inscrições (RF09/RF13/RF14)", () => {
     const ev = await novoEvento(emp.id, { nome: `Insc ${uid()}` });
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto(`/trabalhador/eventos/${ev.id}`);
+    await irPara(page, `/trabalhador/eventos/${ev.id}`);
     await page.getByRole("button", { name: "Inscrever-se" }).click();
     await expect(page.getByText("Você está inscrito")).toBeVisible();
   });
@@ -21,7 +21,7 @@ test.describe("Inscrições (RF09/RF13/RF14)", () => {
     const ev = await novoEvento(emp.id, { nome: `Bloq ${uid()}` });
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto(`/trabalhador/eventos/${ev.id}`);
+    await irPara(page, `/trabalhador/eventos/${ev.id}`);
     await expect(page.getByText("Você precisa estar vinculado à empresa para se inscrever.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Inscrever-se" })).toHaveCount(0);
   });
@@ -32,8 +32,8 @@ test.describe("Inscrições (RF09/RF13/RF14)", () => {
     const ev = await novoEvento(emp.id, { nome: `Oculto ${uid()}` });
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/eventos");
-    await expect(page.getByText("Você ainda não tem vínculos ativos.")).toBeVisible();
+    await irPara(page, "/trabalhador/eventos");
+    await expect(page.getByTestId("empty-state")).toBeVisible();
     await expect(page.getByRole("heading", { name: ev.nome })).toHaveCount(0);
   });
 
@@ -44,7 +44,7 @@ test.describe("Inscrições (RF09/RF13/RF14)", () => {
     const ev = await novoEvento(emp.id, { nome: `Visivel ${uid()}` });
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto("/trabalhador/eventos");
+    await irPara(page, "/trabalhador/eventos");
     await expect(page.getByRole("heading", { name: ev.nome })).toBeVisible();
   });
 
@@ -56,7 +56,7 @@ test.describe("Inscrições (RF09/RF13/RF14)", () => {
     await inscrever(ev.id, trab.id, "INSCRITO");
 
     await loginUI(page, "TRABALHADOR", trab.email);
-    await page.goto(`/trabalhador/eventos/${ev.id}`);
+    await irPara(page, `/trabalhador/eventos/${ev.id}`);
     await page.getByRole("button", { name: "Cancelar inscrição" }).click();
     await expect(page.getByRole("button", { name: "Inscrever-se" })).toBeVisible();
   });

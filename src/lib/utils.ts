@@ -6,16 +6,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Data e hora ficam em `lib/datetime.ts` — lá a distinção entre data civil
+ * (@db.Date, formatada em UTC) e instante (timestamp, formatado em
+ * America/Sao_Paulo) é explícita. Não formatar data por aqui.
+ */
+
 /** Formata Decimal/number como moeda BRL. */
 export function formatBRL(valor: number | string): string {
   const n = typeof valor === "string" ? Number(valor) : valor;
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-/** Formata Date para dd/mm/aaaa. */
-export function formatData(data: Date | string): string {
-  const d = typeof data === "string" ? new Date(data) : data;
-  return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 /** Aplica máscara visual de CPF: 000.000.000-00 */
