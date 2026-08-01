@@ -182,3 +182,14 @@ Empresa (tenant)
 | `jose` no lugar de `next-auth` | Duas tabelas de conta; controle total do token |
 | Login de empresa por `membros`, tenant continua `empresas` (ADR 0001) | Multiusuário + RBAC sem reescrever as consultas escopadas por `empresa_id` |
 | Plano limita uso e um extra da v2, nunca RF do TCC (ADR 0002) | Cobertura de requisitos permanece íntegra no plano gratuito |
+
+## Documentação relacionada
+
+| Documento | O que traz |
+| --- | --- |
+| [`DIAGRAMA_BANCO.md`](DIAGRAMA_BANCO.md) | diagrama ER das 21 tabelas, CHECK constraints escritas à mão e ciclos de vida dos enums |
+| [`CASOS_DE_USO.md`](CASOS_DE_USO.md) | UC-01…UC-41 com atores, fluxo e regras, e o que ficou fora de escopo |
+| [`API_ACTIONS.md`](API_ACTIONS.md) | superfície de escrita: cada server action com entrada, permissão e efeitos |
+| [`REQUISITOS.md`](REQUISITOS.md) | RF/RNF do TCC e os 15 itens da especificação v4 → arquivo |
+| [`CASOS_DE_TESTE.md`](CASOS_DE_TESTE.md) | matriz CT-01…CT-148 e como executar cada suíte |
+| [`adr/`](adr/) | as sete decisões de arquitetura, com as medições que as sustentam |

@@ -41,7 +41,10 @@ test.describe("Eventos (RF05)", () => {
 
     await loginUI(page, "EMPRESA", emp.email);
     await irPara(page, "/empresa/eventos");
+    // v4 item 12: exclusão pede confirmação, dizendo o que será apagado.
     await page.getByRole("button", { name: `Excluir ${ev.nome}` }).click();
+    await expect(page.getByTestId("confirmacao")).toContainText(`Excluir "${ev.nome}"?`);
+    await page.getByRole("button", { name: `Excluir evento: Excluir ${ev.nome}` }).click();
     await expect(page.getByRole("heading", { name: ev.nome })).toHaveCount(0);
   });
 

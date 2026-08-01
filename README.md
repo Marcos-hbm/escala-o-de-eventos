@@ -278,9 +278,21 @@ troca de plano).
 ## Cobertura dos requisitos do TCC
 
 Todos os requisitos funcionais e não funcionais estão implementados. O mapa
-completo RF/RNF → arquivo está em [`docs/REQUISITOS.md`](docs/REQUISITOS.md).
-Arquitetura em [`docs/ARQUITETURA.md`](docs/ARQUITETURA.md); conformidade legal
-em [`docs/LGPD.md`](docs/LGPD.md).
+completo RF/RNF → arquivo, **e a rastreabilidade item por item da especificação v4
+(com o que ficou fora, declarado)**, está em
+[`docs/REQUISITOS.md`](docs/REQUISITOS.md).
+
+Documentação de apoio:
+
+| Documento | O que traz |
+| --- | --- |
+| [`ARQUITETURA.md`](docs/ARQUITETURA.md) | visão geral, camadas, decisões e regras centrais |
+| [`DIAGRAMA_BANCO.md`](docs/DIAGRAMA_BANCO.md) | diagrama ER (Mermaid) das 21 tabelas, constraints e ciclos de vida |
+| [`CASOS_DE_USO.md`](docs/CASOS_DE_USO.md) | UC-01…UC-41 com atores, fluxo e regras |
+| [`API_ACTIONS.md`](docs/API_ACTIONS.md) | todas as server actions: entrada, quem pode, efeitos |
+| [`CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md) | matriz CT-01…CT-147 |
+| [`LGPD.md`](docs/LGPD.md) | conformidade legal |
+| [`adr/`](docs/adr/) | 7 decisões de arquitetura, com as medições que as sustentam |
 
 Resumo:
 
@@ -340,5 +352,6 @@ src/
 tests/
   unit/                 Vitest
   e2e/                  Playwright
-docs/                   ARQUITETURA, LGPD, REQUISITOS, V2_FUNCOES, V3_SAAS, adr/
+docs/                   ARQUITETURA, DIAGRAMA_BANCO, CASOS_DE_USO, API_ACTIONS,
+                        CASOS_DE_TESTE, REQUISITOS, LGPD, V2_FUNCOES, V3_SAAS, adr/
 ```

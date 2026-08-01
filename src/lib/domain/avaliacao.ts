@@ -4,7 +4,7 @@
  * A empresa avalia cinco dimensões; a **nota geral** (`Avaliacao.nota`) passa a ser
  * a média delas. Isso preserva tudo que já existia: `lib/reputacao.ts`, o score da
  * escalação inteligente e as avaliações gravadas antes da v4 (que só têm a nota
- * geral) continuam funcionando sem reescrita — ver ADR 0006.
+ * geral) continuam funcionando sem reescrita — ver `docs/adr/0006-avaliacao-por-criterios-preservando-a-nota-geral.md`.
  */
 
 export type CriterioId =

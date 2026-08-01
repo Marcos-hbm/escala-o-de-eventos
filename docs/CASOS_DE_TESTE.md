@@ -44,7 +44,7 @@ a aplicação em execução + PostgreSQL.
 | --- | --- | --- | --- | --- |
 | CT-22 | Criar evento válido → aparece na lista | E2E | RF05/RF08 | eventos.spec |
 | CT-23 | Editar evento altera os dados | E2E | RF05 | eventos.spec |
-| CT-24 | Excluir evento remove da lista | E2E | RF05 | eventos.spec |
+| CT-24 | Excluir evento (confirmando em duas etapas) remove da lista | E2E | RF05 | eventos.spec |
 | CT-25 | Filtrar eventos por nome | E2E | RF05 | eventos.spec |
 | CT-26 | Evento recém-criado nasce como PUBLICADO | E2E | RF08 | eventos.spec |
 
@@ -233,6 +233,7 @@ a aplicação em execução + PostgreSQL.
 | CT-145 | Atualização periódica declarada + link "atualizar agora" traz pedido novo | E2E | comunicacao.spec |
 | CT-146 | Visualizador não acessa o painel do coordenador | E2E | comunicacao.spec |
 | CT-147 | Histórico do evento continua acessível depois, sem ações | E2E | comunicacao.spec |
+| CT-148 | Ação destrutiva só executa após confirmação explícita (item 12) | E2E | eventos.spec |
 
 ---
 

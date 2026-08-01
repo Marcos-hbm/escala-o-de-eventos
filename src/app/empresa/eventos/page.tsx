@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/field";
-import { SubmitButton } from "@/components/submit-button";
+import { ConfirmarAcao } from "@/components/confirmar-acao";
 import { excluirEvento } from "@/server/actions/eventos";
 import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
@@ -205,13 +205,17 @@ async function listaDeEventos({
                     <Button size="sm" variant="ghost"><Pencil className="h-4 w-4" /> Editar</Button>
                   </Link>
                 )}
+                {/* Exclusão é destrutiva: confirma em duas etapas dizendo o que será apagado. */}
                 {podeExcluir && (
-                  <form action={excluirEvento}>
-                    <input type="hidden" name="eventoId" value={e.id} />
-                    <SubmitButton size="sm" variant="ghost" pendingLabel="..." aria-label={`Excluir ${e.nome}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </SubmitButton>
-                  </form>
+                  <ConfirmarAcao
+                    acao={excluirEvento}
+                    campos={{ eventoId: e.id }}
+                    icone={<Trash2 className="h-4 w-4" />}
+                    rotulo="Excluir"
+                    rotuloConfirmar="Excluir evento"
+                    pergunta={`Excluir "${e.nome}"? Inscrições e escala do evento também são removidas.`}
+                    rotuloAcessivel={`Excluir ${e.nome}`}
+                  />
                 )}
               </div>
             </Card>
