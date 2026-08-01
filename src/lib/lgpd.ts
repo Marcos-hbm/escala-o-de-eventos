@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { registrarAuditoria } from "./audit";
+import { chavePixMascarada } from "./pix-leitura";
 
 /**
  * Rotinas de conformidade LGPD (Lei 13.709/2018).
@@ -26,12 +27,29 @@ export async function exportarDadosTrabalhador(userId: number) {
   });
   if (!user) return null;
 
-  // Remove o hash de senha do pacote exportado.
-  const { senhaHash: _omit, ...dados } = user;
+  // Remove o hash de senha e o texto cifrado da chave PIX do pacote exportado:
+  // o primeiro é credencial, o segundo é ilegível (só faz sentido para quem tem a
+  // chave de cifragem). No lugar do criptograma vai um bloco legível, com a chave
+  // MASCARADA — o arquivo exportado circula fora do sistema, e o valor completo
+  // continua disponível ao titular na tela de perfil e à empresa apenas no
+  // caminho de pagamento, que é auditado (`lib/pix-leitura.ts`).
+  const { senhaHash: _semSenha, pixChaveCifrada: _semCriptograma, pixTipo, pixAtualizadoEm, ...dados } = user;
+  const mascarada = pixTipo ? await chavePixMascarada(userId) : null;
+
   return {
     geradoEm: new Date().toISOString(),
     titular: { tipo: "TRABALHADOR", id: userId },
-    dadosPessoais: dados,
+    dadosPessoais: {
+      ...dados,
+      chavePix: {
+        cadastrada: pixTipo !== null,
+        tipo: pixTipo,
+        // `null` quando há chave cadastrada mas a cifragem não está disponível
+        // no ambiente — não inventamos valor nem escondemos que ela existe.
+        mascarada: mascarada?.mascara ?? null,
+        atualizadaEm: pixAtualizadoEm,
+      },
+    },
   };
 }
 
