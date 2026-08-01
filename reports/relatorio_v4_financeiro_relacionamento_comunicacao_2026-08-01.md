@@ -259,7 +259,8 @@ membro e assinatura) foram apagados ao fim da coleta.
   Nas **três** rodadas desta sessão o residual **não** apareceu (123/123 em todas),
   mas três execuções não provam ausência — o ADR fica registrado. A mitigação
   arquitetural (formulários renderizados no servidor + aviso na URL) é o que reduziu
-  isso de 3/12 para 0.
+  isso de 3/12 para 0. **Este item foi revisto no mesmo dia: ver o adendo (§7)** — a
+  taxa por tela era muito maior do que esta seção sugere, e a causa foi identificada.
 - "Tempo real" da comunicação é **polling de 15 s** isolado em um componente
   (ADR 0007), não WebSocket. É a decisão registrada, não uma limitação escondida.
 - O export LGPD inclui a coluna `pixChaveCifrada` (texto cifrado). Não vaza nada —
@@ -294,3 +295,70 @@ recusadas pelo próprio PostgreSQL, chave PIX cifrada em repouso com leitura aud
 acessibilidade, cross-browser, rotação de chave e cobrança real — está listado no
 escopo e nas recomendações; o sistema não pode ser declarado *validado para produção*
 enquanto esses pontos não forem cobertos.
+
+---
+
+## 7. Adendo (2026-08-01, após o fechamento acima)
+
+Uma verificação seguinte, executada por causa de outra mudança, expôs que o residual
+do ADR 0004 estava **subestimado** para telas específicas. O que estava escrito em
+§3.3 e §4.3 é verdade sobre o que foi medido (três rodadas completas, 123/123), mas
+esconde a concentração por tela.
+
+### 7.1 O que apareceu
+
+Repetindo **só** o grupo "Plano e assinatura": **4 de 10 rodadas com falha**. Com a
+mudança daquele momento revertida (`git stash` + rebuild), **4 de 10** também — logo,
+não era regressão nova.
+
+### 7.2 Como foi investigado
+
+Harness de 16 iterações independentes do fluxo (criar empresa → login →
+`/empresa/plano` → clicar "Mudar para Professional"), 2 workers como na suíte real,
+comparando **tela × banco** em cada iteração e registrando se o `POST` da action foi
+pelo caminho do router (cabeçalho `next-action`) ou nativo.
+
+Em todas as falhas: `db=PROFESSIONAL`, `PLANO_ALTERADO` gravado na auditoria, `POST`
+pelo caminho do router, nenhum erro de console — e um `reload` já mostrava o valor
+novo. A troca acontece; o cliente descarta o resultado.
+
+| Variante | Tela velha |
+| --- | --- |
+| Trocar plano — segmento com `loading.tsx` | 4 de 16 |
+| Trocar plano — sem o `revalidatePath` de outra rota | 3 de 16 (sem efeito) |
+| **Trocar plano — sem `loading.tsx` no segmento** | **0 de 48** |
+| Convidar trabalhador (`/empresa/vinculos`) — com `loading.tsx` | 5 de 64 |
+| **Convidar trabalhador — sem `loading.tsx`** | **0 de 64** |
+| Equipe — adicionar membro (skeleton mantido) | 0 de 64 |
+| Notificações — marcar todas como lidas (skeleton mantido) | 0 de 64 |
+
+Hipóteses descartadas por medição: `revalidatePath` de outra rota; clique antes da
+hidratação (o cabeçalho `next-action` estava presente inclusive nas falhas); "`loading.tsx`
+é ruim em qualquer tela" (duas telas com ele não reproduzem); "dado lento abre a janela
+do defeito" (300 ms de atraso artificial em Notificações: 0 de 12).
+
+### 7.3 Correção aplicada
+
+Removidos `loading.tsx` dos dois segmentos onde o defeito foi medido (`empresa/plano`,
+`empresa/vinculos`); skeleton mantido onde a medição não acusou nada. Como a correção
+é a **ausência** de um arquivo, há guarda de regressão
+(`tests/unit/fronteiras-loading.test.ts`) fixando as duas listas, comentário no
+cabeçalho das duas páginas e o registro no
+[ADR 0004](../docs/adr/0004-atualizacao-de-tela-apos-server-action.md).
+
+### 7.4 Números finais desta sessão (substituem §3.2 e §3.3)
+
+| Verificação | Resultado |
+| --- | --- |
+| `tsc --noEmit` | sem erros |
+| `npm run build` | `✓ Compiled successfully` |
+| Vitest | **200/200** (18 arquivos — inclui os 2 testes novos de export LGPD e os 4 da guarda de fronteiras) |
+| Playwright, build de produção (:3100) | **125/125 em 5 rodadas consecutivas** (625 execuções, nenhuma falha) |
+| Grupo "Plano e assinatura", 10 rodadas | 0 falhas (antes: 4) |
+
+### 7.5 O que continua aberto
+
+O gatilho interno do router **não** foi explicado — foi removido dessas telas. Não
+afirmo que o residual do ADR 0004 acabou: a diferença entre as telas que reproduzem e
+as que não reproduzem é a pista que falta, e é o que deve ser levado ao projeto Next
+junto com o loop reprodutível.

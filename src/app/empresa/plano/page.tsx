@@ -36,6 +36,12 @@ const TOM_STATUS = {
 /**
  * v3 (SaaS) — Plano da conta: assinatura atual, consumo x limites e comparativo
  * de planos. Visível a qualquer membro; a troca exige `plano:gerenciar`.
+ *
+ * **Este segmento não tem `loading.tsx` de propósito.** Com a fronteira de streaming,
+ * 7 de 32 cliques na troca de plano gravavam a mudança no banco e deixavam esta tela
+ * no estado anterior; sem ela, 0 de 48. Medição, hipóteses descartadas e a guarda de
+ * regressão (`tests/unit/fronteiras-loading.test.ts`) estão no
+ * [ADR 0004](../../../../docs/adr/0004-atualizacao-de-tela-apos-server-action.md).
  */
 export default async function PlanoPage({
   searchParams,

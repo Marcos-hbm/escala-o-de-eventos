@@ -1,8 +1,8 @@
 # ADR 0004 — Atualização de tela após server action
 
-- **Status:** aceito com limitação conhecida (ver "O que ainda falha")
-- **Data:** 2026-07-31
-- **Contexto da versão:** v4, fase 1
+- **Status:** aceito; a causa do residual foi identificada em 2026-08-01 (ver "Terceira rodada")
+- **Data:** 2026-07-31 · atualizado em 2026-08-01
+- **Contexto da versão:** v4, fase 1; atualizado na fase 6
 - **Ambiente das medições:** build de produção (`next start`), PostgreSQL 16 em Docker, Chromium; Next.js 15.5.21 e, na segunda rodada de investigação, 16.2.12
 
 ## Contexto
@@ -75,12 +75,91 @@ Leituras:
   servidor, sem `useActionState` onde não há erro de campo) porque são melhores por
   outros motivos, não porque resolvem isso.
 
+## Terceira rodada (2026-08-01): a fronteira de streaming do segmento
+
+Na verificação da fase 6 a suíte completa passou 123/123 três vezes, mas ao repetir
+**só** o grupo "Plano e assinatura" o defeito apareceu com frequência que nenhuma
+medição anterior tinha capturado: **4 de 10 rodadas com falha**. Com a mudança de
+código daquele momento revertida (`git stash`) e rebuild, a taxa se manteve — logo,
+não era regressão nova, e sim algo estrutural da tela.
+
+Harness de medição: 16 iterações independentes do fluxo (criar empresa → login →
+`/empresa/plano` → clicar "Mudar para Professional"), paralelizadas em 2 workers como
+na suíte real, cada uma comparando **tela × banco** e registrando se o `POST` da
+action foi pelo caminho do router (cabeçalho `next-action`) ou nativo.
+
+| Variante (tudo o mais igual) | Tela velha |
+| --- | --- |
+| Trocar plano — como estava, segmento com `loading.tsx` | 4 de 16 |
+| Trocar plano — sem o `revalidatePath` de rota diferente (`/empresa/equipe`) | 3 de 16 |
+| **Trocar plano — sem `loading.tsx` no segmento** | **0 de 48** (3 rodadas) |
+| Trocar plano — grupo "Plano e assinatura" completo, sem `loading.tsx` | **0 de 10 rodadas** (antes 4 de 10) |
+
+Repetimos o mesmo harness numa segunda tela com a mesma combinação (`loading.tsx` +
+formulário mutante renderizado no servidor), depois que a suíte completa acusou uma
+falha justamente nela:
+
+| Convidar trabalhador (`/empresa/vinculos`) | Tela velha |
+| --- | --- |
+| Com `loading.tsx` | 5 de 64 (4 rodadas: 0, 2, 2, 1) |
+| **Sem `loading.tsx`** | **0 de 64** (4 rodadas) |
+
+E medimos as duas telas que têm `loading.tsx` e **não** apresentaram o defeito, para
+não removê-lo por superstição:
+
+| Tela (com `loading.tsx` mantido) | Tela velha |
+| --- | --- |
+| Equipe — adicionar membro | 0 de 64 |
+| Notificações — marcar todas como lidas | 0 de 64 |
+
+Em **todas** as falhas: `db=PROFESSIONAL`, `PLANO_ALTERADO` gravado na auditoria,
+`POST` pelo caminho do router (`next-action` presente, resposta 303), nenhum erro de
+console — e um `reload` já mostrava o valor novo. Ou seja: a troca acontece, o cliente
+descarta o resultado.
+
+**Hipóteses descartadas nesta rodada, por medição:**
+
+- *`revalidatePath` de outra rota antes do `redirect`* → removido, 3 de 16 (sem
+  efeito); restaurado, porque é ele que atualiza a cota exibida em Equipe;
+- *clique antes da hidratação* → o cabeçalho `next-action` estava presente em todas
+  as iterações, inclusive nas que falharam: o React já havia assumido o formulário;
+- *`loading.tsx` é ruim em qualquer tela* → **não**. Equipe e Notificações têm
+  `loading.tsx` e formulário mutante e não reproduzem (0 de 64 cada);
+- *dado lento faz a fronteira "suspender" e abrir a janela do defeito* → inserimos
+  300 ms de atraso artificial na página de Notificações (que tem `loading.tsx`):
+  0 de 12. Hipótese rejeitada.
+
+Por que em duas telas e não nas outras duas, não sabemos — o gatilho interno do router segue sem
+explicação, e é isso que será reportado ao projeto Next. O que está medido e é
+suficiente para decidir: **naquele segmento, a fronteira de streaming era condição
+necessária para o defeito.**
+
+### Decisão
+
+Removidos `src/app/empresa/plano/loading.tsx` e `src/app/empresa/vinculos/loading.tsx`
+— as duas telas em que o defeito foi medido. O skeleton **continua** onde medimos que
+não faz mal (Equipe, Notificações) e nas telas que só leem dados (os dois painéis).
+Não estendemos a remoção por analogia: `trabalhador/historico` não foi medido e ficou
+como está.
+
+Como a correção é a **ausência** de um arquivo — invisível numa revisão de código —,
+ela tem guarda de regressão em `tests/unit/fronteiras-loading.test.ts`, que fixa as
+duas listas (sem skeleton / com skeleton), e comentário no cabeçalho das duas páginas.
+
+Custo aceito: sem `loading.tsx`, a navegação para essas duas telas espera a consulta
+ao banco antes de pintar (Plano: uma assinatura + três contagens) em vez de mostrar
+skeleton. Correção do que a tela informa vale mais do que percepção de velocidade.
+
 ## O que ainda falha
 
-Em parte das execuções (com Next 16: 0 a 1 em 87 testes por rodada; no loop
-dirigido ao fluxo mais sensível, ~1 a 2 em 12), o cliente não aplica o resultado da
-action — inclusive quando ele é um `redirect` para URL diferente. Nesses casos o
-banco está correto e qualquer navegação mostra o estado atual.
+Depois das duas remoções, os fluxos que concentravam o defeito estão em 0 de 48
+(trocar plano) e 0 de 64 (convidar). **Não afirmamos que o residual acabou**: o
+gatilho no router não foi explicado, apenas removido dessas telas. Na suíte completa
+o sintoma nunca passou de 0 a 1 em 125 testes por rodada, sempre com o banco correto —
+qualquer navegação mostra o estado atual.
+
+Medição de referência para comparar no futuro: harness de 16 iterações do fluxo
+sensível, 2 workers, build de produção, comparando tela × banco em cada iteração.
 
 **Hipóteses testadas e descartadas por medição:**
 
@@ -99,16 +178,19 @@ banco está correto e qualquer navegação mostra o estado atual.
 
 **Próximos passos propostos** (nesta ordem, com medição a cada etapa):
 
-1. ~~atualizar o Next e repetir o loop instrumentado~~ — **feito** (tabela acima):
-   melhora, não resolve;
+1. ~~atualizar o Next e repetir o loop instrumentado~~ — **feito**: melhora, não
+   resolve. ~~Isolar a variável que faltava no fluxo mais sensível~~ — **feito** na
+   terceira rodada: era o `loading.tsx` do segmento;
 2. `router.refresh()` explícito no cliente após a action (exige componente cliente
    em volta de cada formulário — custo de arquitetura a avaliar);
 3. transformar as mutações em navegação de página inteira, sem interceptação do
    router (`<form method="post">` para route handler), abrindo mão de action
    tipada;
-4. reportar o comportamento ao projeto Next com o loop reprodutível — o sintoma
-   (POST 200, mutação aplicada, cliente não atualiza, sem erro) tem cara de bug do
-   router, não de código de aplicação.
+4. reportar o comportamento ao projeto Next com o loop reprodutível — agora com um
+   caso mínimo bem mais forte: mesma página, mesma action, `loading.tsx` presente
+   (4 de 16 e 5 de 64) versus ausente (0 de 48 e 0 de 64);
+5. entender por que Equipe e Notificações não reproduzem: é a diferença que aponta o
+   gatilho real dentro do router.
 
 Enquanto isso, nenhuma decisão de produto depende do caminho quebrado: o dado é
 sempre gravado, e as telas críticas (excluir evento, vínculos, presença,

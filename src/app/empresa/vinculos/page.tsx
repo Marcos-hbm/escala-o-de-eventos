@@ -12,6 +12,14 @@ import { Flash } from "@/components/ui/flash";
 
 export const metadata = { title: "Vínculos — Escala" };
 
+/**
+ * **Este segmento não tem `loading.tsx` de propósito.** Com a fronteira de streaming,
+ * 5 de 64 convites eram gravados no banco sem que a tela saísse do estado anterior;
+ * sem ela, 0 de 64. Ver
+ * [ADR 0004](../../../../docs/adr/0004-atualizacao-de-tela-apos-server-action.md) e a
+ * guarda em `tests/unit/fronteiras-loading.test.ts`.
+ */
+
 export default async function VinculosEmpresa({
   searchParams,
 }: {
