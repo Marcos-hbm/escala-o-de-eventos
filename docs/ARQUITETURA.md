@@ -130,6 +130,23 @@ Empresa (tenant)
   limitação remanescente em
   [ADR 0004](adr/0004-atualizacao-de-tela-apos-server-action.md).
 
+## Comunicação do evento (v4)
+
+- **Janela do canal** em `lib/domain/comunicacao.ts` (`estadoDoEvento`): existe
+  apenas no dia do evento, comparando **data civil em Brasília** (`diaCivilBR`) com a
+  data civil do evento. Comparar com instante em UTC dava o dia errado entre 21h e
+  meia-noite — bug pego por teste antes de chegar à tela.
+- **Transições de status** também são domínio puro: `EM_ANALISE → aprovada/recusada/
+  aguardando`, `AGUARDANDO → aprovada/recusada/finalizada`, `APROVADA → finalizada`;
+  recusada e finalizada são terminais (reabrir viraria histórico incoerente).
+- **"Tempo real" é polling**, isolado em `components/atualizacao-automatica.tsx`
+  (15s, pausável, com link de atualização que é navegação real). A decisão foi tomada
+  no início da v4: não exige infraestrutura nova, funciona em qualquer deploy e é
+  determinística no teste — trocar por SSE/WebSocket mexe só nesse componente.
+- **Check-in/check-out** gravam instantes em `registros_presenca` e o check-in
+  confirma `StatusInscricao.PRESENTE`, mantendo coerente o resumo que a reputação e o
+  score já usavam.
+
 ## Relacionamento e avaliação (v4)
 
 - **Bloqueio é regra de consulta**, não só registro: `lib/bloqueio.ts` concentra as

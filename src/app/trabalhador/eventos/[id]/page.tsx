@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { requireTrabalhador } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { estaBloqueado } from "@/lib/bloqueio";
+import { ComunicacaoDoEvento } from "./comunicacao";
+import { Flash } from "@/components/ui/flash";
 import { Card, Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/submit-button";
@@ -11,7 +13,14 @@ import { formatBRL } from "@/lib/utils";
 import { formatarDataCivil } from "@/lib/datetime";
 import { MapPin, CalendarDays, Users, Briefcase } from "lucide-react";
 
-export default async function DetalheEvento({ params }: { params: Promise<{ id: string }> }) {
+export default async function DetalheEvento({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ aviso?: string; erro_op?: string }>;
+}) {
+  const sp = await searchParams;
   const s = await requireTrabalhador();
   const { id } = await params;
   const eventoId = Number(id);
@@ -36,9 +45,12 @@ export default async function DetalheEvento({ params }: { params: Promise<{ id: 
 
   const status = evento.inscricoes[0]?.status;
   const jaInscrito = status === "INSCRITO" || status === "ESCALADO";
+  // v4 item 7: o canal de comunicação existe para quem está escalado.
+  const escalado = ["ESCALADO", "PRESENTE", "FALTA"].includes(status ?? "");
 
   return (
     <div className="mx-auto max-w-2xl">
+      <Flash searchParams={sp} caminho={`/trabalhador/eventos/${evento.id}`} />
       <Link href="/trabalhador/eventos" className="text-sm text-brand-600 hover:underline">← Voltar</Link>
       <Card className="mt-4">
         <div className="flex items-start justify-between gap-3">
@@ -92,6 +104,14 @@ export default async function DetalheEvento({ params }: { params: Promise<{ id: 
         </div>
         <p className="mt-2 text-xs text-muted">Estar inscrito não significa estar escalado — a empresa confirma a escala.</p>
       </Card>
+
+      <ComunicacaoDoEvento
+        eventoId={evento.id}
+        userId={s.sub}
+        dataEvento={evento.dataEvento}
+        status={evento.status}
+        escalado={escalado}
+      />
     </div>
   );
 }

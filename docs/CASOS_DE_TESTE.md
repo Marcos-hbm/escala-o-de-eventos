@@ -211,6 +211,29 @@ a aplicação em execução + PostgreSQL.
 | CT-128 | Depois de desbloqueado, o trabalhador volta a ver as vagas | E2E | relacionamento.spec |
 | CT-129 | Favorito exibe destaque e ponto a melhorar a partir dos critérios | E2E | relacionamento.spec |
 
+## v4 fase 5 — Comunicação do evento e painel do coordenador
+
+| CT | Descrição | Tipo | Arquivo |
+| --- | --- | --- | --- |
+| CT-130 | Estado do evento por data civil BR; madrugada em UTC não encerra o dia | Unitário | comunicacao.test |
+| CT-131 | Transições de status válidas; terminais não voltam atrás | Unitário | comunicacao.test |
+| CT-132 | Fila do coordenador: abertas antes, urgentes na frente, antigas primeiro | Unitário | comunicacao.test |
+| CT-133 | Presença: estado do turno e minutos trabalhados | Unitário | comunicacao.test |
+| CT-134 | `diaCivilBR` devolve o dia em Brasília, não em UTC | Unitário | datetime.test |
+| CT-135 | Escalado abre pedido em evento de hoje e a coordenação é notificada | E2E | comunicacao.spec |
+| CT-136 | Pedido urgente chega marcado para a coordenação | E2E | comunicacao.spec |
+| CT-137 | Segundo pedido do mesmo tipo é recusado na tela **e** no servidor | E2E | comunicacao.spec |
+| CT-138 | Canal fechado antes do dia do evento, com histórico visível | E2E | comunicacao.spec |
+| CT-139 | Quem não está escalado não vê o canal | E2E | comunicacao.spec |
+| CT-140 | Coordenação responde: status muda, notifica e o trabalhador vê a resposta | E2E | comunicacao.spec |
+| CT-141 | Solicitação terminal não oferece resposta (transição inválida) | E2E | comunicacao.spec |
+| CT-142 | Check-in/check-out gravam horário e confirmam presença | E2E | comunicacao.spec |
+| CT-143 | Check-out sem check-in não é oferecido | E2E | comunicacao.spec |
+| CT-144 | Mensagem à equipe notifica escalados e aparece nos dois lados | E2E | comunicacao.spec |
+| CT-145 | Atualização periódica declarada + link "atualizar agora" traz pedido novo | E2E | comunicacao.spec |
+| CT-146 | Visualizador não acessa o painel do coordenador | E2E | comunicacao.spec |
+| CT-147 | Histórico do evento continua acessível depois, sem ações | E2E | comunicacao.spec |
+
 ---
 
 ## Como executar

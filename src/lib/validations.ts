@@ -257,6 +257,32 @@ export const favoritoSchema = z.object({
   observacao: textoOpcional(300),
 });
 
+// --------------------------------------------------------------------------
+// Comunicação do evento (v4, itens 7 e 8)
+// --------------------------------------------------------------------------
+
+export const solicitacaoEventoSchema = z.object({
+  eventoId: z.coerce.number().int().positive(),
+  tipo: z.enum(["INTERVALO", "DESCANSO", "PROBLEMA", "AJUDA", "SUBSTITUICAO", "FALAR_COORDENACAO"]),
+  mensagem: textoOpcional(500),
+});
+
+export const respostaSolicitacaoSchema = z.object({
+  solicitacaoId: z.coerce.number().int().positive(),
+  status: z.enum(["EM_ANALISE", "AGUARDANDO", "APROVADA", "RECUSADA", "FINALIZADA"]),
+  resposta: textoOpcional(500),
+});
+
+export const mensagemCoordenacaoSchema = z.object({
+  eventoId: z.coerce.number().int().positive(),
+  texto: z.string().trim().min(2, "Escreva a mensagem").max(500),
+  /** Vazio = recado para toda a equipe escalada. */
+  userId: z.preprocess(
+    (v) => (v === null || v === undefined || v === "" ? undefined : v),
+    z.coerce.number().int().positive().optional(),
+  ),
+});
+
 /** Chave PIX do trabalhador (o valor é validado por tipo em `lib/pix.ts`). */
 export const chavePixSchema = z.object({
   tipo: z.enum(["CPF", "CNPJ", "EMAIL", "TELEFONE", "ALEATORIA"]),

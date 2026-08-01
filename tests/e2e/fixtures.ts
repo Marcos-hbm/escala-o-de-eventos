@@ -303,6 +303,45 @@ export async function bloquear(empresaId: number, userId: number, motivo = "Moti
   return prisma.trabalhadorBloqueio.create({ data: { empresaId, userId, motivo } });
 }
 
+/**
+ * Evento acontecendo **hoje** — é a janela em que a comunicação do evento existe
+ * (`estadoDoEvento`). A data é calculada no fuso de Brasília, igual à regra do
+ * domínio, senão o teste quebraria de madrugada.
+ */
+export async function novoEventoHoje(
+  empresaId: number,
+  over: Partial<{ nome: string; vagas: number; valorCache: number; horaInicio: string }> = {},
+) {
+  const { diaCivilBR } = await import("../../src/lib/datetime");
+  return prisma.evento.create({
+    data: {
+      empresaId,
+      nome: over.nome ?? `Evento hoje ${uid()}`,
+      dataEvento: new Date(`${diaCivilBR()}T00:00:00.000Z`),
+      local: "Local E2E",
+      horaInicio: over.horaInicio ?? "08:00",
+      vagas: over.vagas ?? 5,
+      funcoes: "Apoio",
+      valorCache: over.valorCache ?? 150,
+      status: "PUBLICADO",
+    },
+  });
+}
+
+/** Mensagem da coordenação (equipe inteira quando `userId` é omitido). */
+export async function novaMensagemCoordenacao(eventoId: number, membroId: number, texto: string, userId?: number) {
+  return prisma.mensagemCoordenador.create({ data: { eventoId, membroId, texto, userId: userId ?? null } });
+}
+
+/** Registro de presença (check-in/check-out) de uma escalação. */
+export async function registrarPresenca(inscricaoId: number, checkInEm?: Date, checkOutEm?: Date) {
+  return prisma.registroPresenca.upsert({
+    where: { inscricaoId },
+    create: { inscricaoId, checkInEm: checkInEm ?? null, checkOutEm: checkOutEm ?? null },
+    update: { checkInEm: checkInEm ?? null, checkOutEm: checkOutEm ?? null },
+  });
+}
+
 /** Solicitação do trabalhador durante o evento. */
 export async function novaSolicitacao(
   eventoId: number,

@@ -10,6 +10,26 @@ Implementação do sistema descrito no TCC *Sistema de Escalação de Freelancer
 
 ---
 
+## Novidades (v4, fase 5) — comunicação do evento e painel do coordenador
+
+- **Canal do trabalhador durante o evento**: pedir intervalo, descanso, ajuda,
+  substituição, informar problema ou falar com a coordenação — com status
+  acompanhado na própria tela (Em análise → Aguardando/Aprovada/Recusada →
+  Finalizada). O canal **só abre no dia do evento** (data civil no fuso de
+  Brasília) e é exclusivo de quem está escalado; fora da janela, o histórico
+  continua visível.
+- **Painel do coordenador** (`/empresa/eventos/[id]/painel`): equipe escalada com
+  presença e **check-in/check-out** com horário real, fila de solicitações ordenada
+  (abertas primeiro, urgentes na frente, mais antigas antes), resposta com
+  transições válidas, mensagens para a equipe ou individuais.
+- **Atualização periódica** isolada em um componente (polling de 15s, pausável, com
+  link "atualizar agora" que é navegação real). Trocar por SSE/WebSocket mexe só
+  nesse arquivo.
+- Notificações em todas as pontas: pedido chega à coordenação, resposta volta ao
+  trabalhador, recado da coordenação chega a quem está escalado.
+
+---
+
 ## Novidades (v4, fase 4) — avaliação por critérios, favoritos e bloqueio
 
 - **Avaliação em cinco critérios** (pontualidade, comunicação, trabalho em equipe,
@@ -232,19 +252,19 @@ npm run dev                # http://localhost:3000
 ### Testes
 
 ```bash
-npm test                      # 176 testes: 158 unitários + 18 de integração (PostgreSQL)
+npm test                      # 194 testes: 176 unitários + 18 de integração (PostgreSQL)
 npx vitest run tests/unit     # só os unitários (sem banco)
 
 npm run test:e2e:smoke        # smoke E2E (páginas públicas + gating) — sem banco
 
-# Suíte E2E completa (110 testes) — precisa da app + PostgreSQL.
+# Suíte E2E completa (123 testes) — precisa da app + PostgreSQL.
 # Mais estável contra o build de produção:
 npm run db:up                 # ou docker compose up -d
 npm run build && npm start &  # servidor de produção em :3000
 E2E_BASE_URL=http://localhost:3000 npm run test:e2e
 ```
 
-A matriz completa de casos (CT-01…CT-129) está em
+A matriz completa de casos (CT-01…CT-147) está em
 [`docs/CASOS_DE_TESTE.md`](docs/CASOS_DE_TESTE.md). Os testes E2E criam dados
 isolados por teste (CPF/CNPJ válidos gerados), então rodam em paralelo e
 repetidamente sem interferência. Cobrem: cadastro/login (positivos e negativos),

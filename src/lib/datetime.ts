@@ -96,6 +96,20 @@ export function formatarHora(valor: EntradaData, vazio = "—"): string {
   });
 }
 
+/**
+ * Dia civil (`AAAA-MM-DD`) de um **instante**, no fuso de Brasília.
+ *
+ * É o que responde "que dia é hoje aqui?" — diferente de `paraInputDate`, que
+ * converte uma data civil e usa UTC. Usar o formatador de data civil para isso
+ * produz o dia errado entre 21h e meia-noite (foi um bug real, pego por teste em
+ * `estadoDoEvento`).
+ */
+export function diaCivilBR(valor: EntradaData = new Date()): string {
+  if (dataInvalida(valor)) return "";
+  const [dia, mes, ano] = formatarData(valor).split("/");
+  return `${ano}-${mes}-${dia}`;
+}
+
 /** Instante como `DD/MM/AAAA HH:mm` no fuso de Brasília. */
 export function formatarDataHora(valor: EntradaData, vazio = "—"): string {
   if (dataInvalida(valor)) return vazio;

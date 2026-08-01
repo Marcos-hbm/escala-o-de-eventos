@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import {
+  diaCivilBR,
   formatarData,
   formatarDataCivil,
   formatarDataCivilExtensa,
@@ -152,5 +153,19 @@ describe("nenhuma formatação de data fora de lib/datetime.ts", () => {
       .filter((f) => !PERMITIDOS.includes(f.replace(/\\/g, "/")))
       .filter((f) => PROIBIDO.test(readFileSync(f, "utf8")));
     expect(infratores).toEqual([]);
+  });
+});
+
+describe("diaCivilBR", () => {
+  it("devolve o dia em Brasília, não em UTC", () => {
+    // 16/08 00:30 UTC ainda é 15/08 em Brasília.
+    expect(diaCivilBR(new Date("2026-08-16T00:30:00.000Z"))).toBe("2026-08-15");
+    expect(diaCivilBR(new Date("2026-08-15T12:00:00.000Z"))).toBe("2026-08-15");
+    // 03:00 UTC = 00:00 em Brasília: já é o dia novo aqui.
+    expect(diaCivilBR(new Date("2026-08-16T03:00:00.000Z"))).toBe("2026-08-16");
+  });
+
+  it("entrada inválida devolve string vazia (não 'NaN-NaN-NaN')", () => {
+    expect(diaCivilBR("não é data")).toBe("");
   });
 });
